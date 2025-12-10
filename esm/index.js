@@ -1,4 +1,4 @@
-import {render, html, svg} from 'uhtml';
+import {render, html, svg} from 'uhtml/dom';
 import umap from 'umap';
 import css from 'plain-tag';
 
