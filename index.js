@@ -1,406 +1,113 @@
 var uce = (function (exports) {
   'use strict';
 
-  function _typeof(obj) {
+  function _typeof(o) {
     "@babel/helpers - typeof";
 
-    return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (obj) {
-      return typeof obj;
-    } : function (obj) {
-      return obj && "function" == typeof Symbol && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj;
-    }, _typeof(obj);
+    return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) {
+      return typeof o;
+    } : function (o) {
+      return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o;
+    }, _typeof(o);
   }
 
-  function _toPrimitive(input, hint) {
-    if (_typeof(input) !== "object" || input === null) return input;
-    var prim = input[Symbol.toPrimitive];
-    if (prim !== undefined) {
-      var res = prim.call(input, hint || "default");
-      if (_typeof(res) !== "object") return res;
+  function toPrimitive(t, r) {
+    if ("object" != _typeof(t) || !t) return t;
+    var e = t[Symbol.toPrimitive];
+    if (void 0 !== e) {
+      var i = e.call(t, r);
+      if ("object" != _typeof(i)) return i;
       throw new TypeError("@@toPrimitive must return a primitive value.");
     }
-    return (hint === "string" ? String : Number)(input);
+    return (String )(t);
   }
 
-  function _toPropertyKey(arg) {
-    var key = _toPrimitive(arg, "string");
-    return _typeof(key) === "symbol" ? key : String(key);
+  function toPropertyKey(t) {
+    var i = toPrimitive(t, "string");
+    return "symbol" == _typeof(i) ? i : i + "";
   }
 
-  function _defineProperties(target, props) {
-    for (var i = 0; i < props.length; i++) {
-      var descriptor = props[i];
-      descriptor.enumerable = descriptor.enumerable || false;
-      descriptor.configurable = true;
-      if ("value" in descriptor) descriptor.writable = true;
-      Object.defineProperty(target, _toPropertyKey(descriptor.key), descriptor);
+  function _defineProperties(e, r) {
+    for (var t = 0; t < r.length; t++) {
+      var o = r[t];
+      o.enumerable = o.enumerable || false, o.configurable = true, "value" in o && (o.writable = true), Object.defineProperty(e, toPropertyKey(o.key), o);
     }
   }
-  function _createClass(Constructor, protoProps, staticProps) {
-    if (protoProps) _defineProperties(Constructor.prototype, protoProps);
-    if (staticProps) _defineProperties(Constructor, staticProps);
-    Object.defineProperty(Constructor, "prototype", {
+  function _createClass(e, r, t) {
+    return r && _defineProperties(e.prototype, r), t && _defineProperties(e, t), Object.defineProperty(e, "prototype", {
       writable: false
-    });
-    return Constructor;
+    }), e;
   }
 
-  function _classCallCheck(instance, Constructor) {
-    if (!(instance instanceof Constructor)) {
-      throw new TypeError("Cannot call a class as a function");
-    }
+  function _classCallCheck(a, n) {
+    if (!(a instanceof n)) throw new TypeError("Cannot call a class as a function");
   }
 
-  function _setPrototypeOf(o, p) {
-    _setPrototypeOf = Object.setPrototypeOf ? Object.setPrototypeOf.bind() : function _setPrototypeOf(o, p) {
-      o.__proto__ = p;
-      return o;
-    };
-    return _setPrototypeOf(o, p);
+  function _assertThisInitialized(e) {
+    if (void 0 === e) throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
+    return e;
   }
 
-  function _inherits(subClass, superClass) {
-    if (typeof superClass !== "function" && superClass !== null) {
-      throw new TypeError("Super expression must either be null or a function");
-    }
-    subClass.prototype = Object.create(superClass && superClass.prototype, {
+  function _possibleConstructorReturn(t, e) {
+    if (e && ("object" == _typeof(e) || "function" == typeof e)) return e;
+    if (void 0 !== e) throw new TypeError("Derived constructors may only return object or undefined");
+    return _assertThisInitialized(t);
+  }
+
+  function _getPrototypeOf(t) {
+    return _getPrototypeOf = Object.setPrototypeOf ? Object.getPrototypeOf.bind() : function (t) {
+      return t.__proto__ || Object.getPrototypeOf(t);
+    }, _getPrototypeOf(t);
+  }
+
+  function _setPrototypeOf(t, e) {
+    return _setPrototypeOf = Object.setPrototypeOf ? Object.setPrototypeOf.bind() : function (t, e) {
+      return t.__proto__ = e, t;
+    }, _setPrototypeOf(t, e);
+  }
+
+  function _inherits(t, e) {
+    if ("function" != typeof e && null !== e) throw new TypeError("Super expression must either be null or a function");
+    t.prototype = Object.create(e && e.prototype, {
       constructor: {
-        value: subClass,
+        value: t,
         writable: true,
         configurable: true
       }
-    });
-    Object.defineProperty(subClass, "prototype", {
+    }), Object.defineProperty(t, "prototype", {
       writable: false
-    });
-    if (superClass) _setPrototypeOf(subClass, superClass);
+    }), e && _setPrototypeOf(t, e);
   }
 
-  function _assertThisInitialized(self) {
-    if (self === void 0) {
-      throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
+  function _arrayLikeToArray(r, a) {
+    (null == a || a > r.length) && (a = r.length);
+    for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e];
+    return n;
+  }
+
+  function _arrayWithoutHoles(r) {
+    if (Array.isArray(r)) return _arrayLikeToArray(r);
+  }
+
+  function _iterableToArray(r) {
+    if ("undefined" != typeof Symbol && null != r[Symbol.iterator] || null != r["@@iterator"]) return Array.from(r);
+  }
+
+  function _unsupportedIterableToArray(r, a) {
+    if (r) {
+      if ("string" == typeof r) return _arrayLikeToArray(r, a);
+      var t = {}.toString.call(r).slice(8, -1);
+      return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0;
     }
-    return self;
-  }
-
-  function _possibleConstructorReturn(self, call) {
-    if (call && (_typeof(call) === "object" || typeof call === "function")) {
-      return call;
-    } else if (call !== void 0) {
-      throw new TypeError("Derived constructors may only return object or undefined");
-    }
-    return _assertThisInitialized(self);
-  }
-
-  function _getPrototypeOf(o) {
-    _getPrototypeOf = Object.setPrototypeOf ? Object.getPrototypeOf.bind() : function _getPrototypeOf(o) {
-      return o.__proto__ || Object.getPrototypeOf(o);
-    };
-    return _getPrototypeOf(o);
-  }
-
-  function _superPropBase(object, property) {
-    while (!Object.prototype.hasOwnProperty.call(object, property)) {
-      object = _getPrototypeOf(object);
-      if (object === null) break;
-    }
-    return object;
-  }
-
-  function _get() {
-    if (typeof Reflect !== "undefined" && Reflect.get) {
-      _get = Reflect.get.bind();
-    } else {
-      _get = function _get(target, property, receiver) {
-        var base = _superPropBase(target, property);
-        if (!base) return;
-        var desc = Object.getOwnPropertyDescriptor(base, property);
-        if (desc.get) {
-          return desc.get.call(arguments.length < 3 ? target : receiver);
-        }
-        return desc.value;
-      };
-    }
-    return _get.apply(this, arguments);
-  }
-
-  function _isNativeFunction(fn) {
-    return Function.toString.call(fn).indexOf("[native code]") !== -1;
-  }
-
-  function _isNativeReflectConstruct$2() {
-    if (typeof Reflect === "undefined" || !Reflect.construct) return false;
-    if (Reflect.construct.sham) return false;
-    if (typeof Proxy === "function") return true;
-    try {
-      Boolean.prototype.valueOf.call(Reflect.construct(Boolean, [], function () {}));
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  function _construct(Parent, args, Class) {
-    if (_isNativeReflectConstruct$2()) {
-      _construct = Reflect.construct.bind();
-    } else {
-      _construct = function _construct(Parent, args, Class) {
-        var a = [null];
-        a.push.apply(a, args);
-        var Constructor = Function.bind.apply(Parent, a);
-        var instance = new Constructor();
-        if (Class) _setPrototypeOf(instance, Class.prototype);
-        return instance;
-      };
-    }
-    return _construct.apply(null, arguments);
-  }
-
-  function _wrapNativeSuper(Class) {
-    var _cache = typeof Map === "function" ? new Map() : undefined;
-    _wrapNativeSuper = function _wrapNativeSuper(Class) {
-      if (Class === null || !_isNativeFunction(Class)) return Class;
-      if (typeof Class !== "function") {
-        throw new TypeError("Super expression must either be null or a function");
-      }
-      if (typeof _cache !== "undefined") {
-        if (_cache.has(Class)) return _cache.get(Class);
-        _cache.set(Class, Wrapper);
-      }
-      function Wrapper() {
-        return _construct(Class, arguments, _getPrototypeOf(this).constructor);
-      }
-      Wrapper.prototype = Object.create(Class.prototype, {
-        constructor: {
-          value: Wrapper,
-          enumerable: false,
-          writable: true,
-          configurable: true
-        }
-      });
-      return _setPrototypeOf(Wrapper, Class);
-    };
-    return _wrapNativeSuper(Class);
-  }
-
-  function _createSuper$1(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct$1(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
-  function _isNativeReflectConstruct$1() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Boolean.prototype.valueOf.call(Reflect.construct(Boolean, [], function () {})); return true; } catch (e) { return false; } }
-  var MapSet = /*#__PURE__*/function (_Map) {
-    _inherits(MapSet, _Map);
-    var _super = _createSuper$1(MapSet);
-    function MapSet() {
-      _classCallCheck(this, MapSet);
-      return _super.apply(this, arguments);
-    }
-    _createClass(MapSet, [{
-      key: "set",
-      value: function set(key, value) {
-        _get(_getPrototypeOf(MapSet.prototype), "set", this).call(this, key, value);
-        return value;
-      }
-    }]);
-    return MapSet;
-  }( /*#__PURE__*/_wrapNativeSuper(Map));
-  var WeakMapSet = /*#__PURE__*/function (_WeakMap) {
-    _inherits(WeakMapSet, _WeakMap);
-    var _super2 = _createSuper$1(WeakMapSet);
-    function WeakMapSet() {
-      _classCallCheck(this, WeakMapSet);
-      return _super2.apply(this, arguments);
-    }
-    _createClass(WeakMapSet, [{
-      key: "set",
-      value: function set(key, value) {
-        _get(_getPrototypeOf(WeakMapSet.prototype), "set", this).call(this, key, value);
-        return value;
-      }
-    }]);
-    return WeakMapSet;
-  }( /*#__PURE__*/_wrapNativeSuper(WeakMap));
-
-  /*! (c) Andrea Giammarchi - ISC */
-  var empty = /^(?:area|base|br|col|embed|hr|img|input|keygen|link|menuitem|meta|param|source|track|wbr)$/i;
-  var elements = /<([a-z]+[a-z0-9:._-]*)([^>]*?)(\/?)>/g;
-  var attributes = /([^\s\\>"'=]+)\s*=\s*(['"]?)\x01/g;
-  var holes = /[\x01\x02]/g;
-
-  // \x01 Node.ELEMENT_NODE
-  // \x02 Node.ATTRIBUTE_NODE
-
-  /**
-   * Given a template, find holes as both nodes and attributes and
-   * return a string with holes as either comment nodes or named attributes.
-   * @param {string[]} template a template literal tag array
-   * @param {string} prefix prefix to use per each comment/attribute
-   * @param {boolean} svg enforces self-closing tags
-   * @returns {string} X/HTML with prefixed comments or attributes
-   */
-  var instrument = (function (template, prefix, svg) {
-    var i = 0;
-    return template.join('\x01').trim().replace(elements, function (_, name, attrs, selfClosing) {
-      var ml = name + attrs.replace(attributes, '\x02=$2$1').trimEnd();
-      if (selfClosing.length) ml += svg || empty.test(name) ? ' /' : '></' + name;
-      return '<' + ml + '>';
-    }).replace(holes, function (hole) {
-      return hole === '\x01' ? '<!--' + prefix + i++ + '-->' : prefix + i++;
-    });
-  });
-
-  function _arrayLikeToArray(arr, len) {
-    if (len == null || len > arr.length) len = arr.length;
-    for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i];
-    return arr2;
-  }
-
-  function _arrayWithoutHoles(arr) {
-    if (Array.isArray(arr)) return _arrayLikeToArray(arr);
-  }
-
-  function _iterableToArray(iter) {
-    if (typeof Symbol !== "undefined" && iter[Symbol.iterator] != null || iter["@@iterator"] != null) return Array.from(iter);
-  }
-
-  function _unsupportedIterableToArray(o, minLen) {
-    if (!o) return;
-    if (typeof o === "string") return _arrayLikeToArray(o, minLen);
-    var n = Object.prototype.toString.call(o).slice(8, -1);
-    if (n === "Object" && o.constructor) n = o.constructor.name;
-    if (n === "Map" || n === "Set") return Array.from(o);
-    if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray(o, minLen);
   }
 
   function _nonIterableSpread() {
     throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
   }
 
-  function _toConsumableArray(arr) {
-    return _arrayWithoutHoles(arr) || _iterableToArray(arr) || _unsupportedIterableToArray(arr) || _nonIterableSpread();
+  function _toConsumableArray(r) {
+    return _arrayWithoutHoles(r) || _iterableToArray(r) || _unsupportedIterableToArray(r) || _nonIterableSpread();
   }
-
-  var ELEMENT_NODE = 1;
-  var nodeType = 111;
-  var remove = function remove(_ref) {
-    var firstChild = _ref.firstChild,
-      lastChild = _ref.lastChild;
-    var range = document.createRange();
-    range.setStartAfter(firstChild);
-    range.setEndAfter(lastChild);
-    range.deleteContents();
-    return firstChild;
-  };
-  var diffable = function diffable(node, operation) {
-    return node.nodeType === nodeType ? 1 / operation < 0 ? operation ? remove(node) : node.lastChild : operation ? node.valueOf() : node.firstChild : node;
-  };
-  var persistent = function persistent(fragment) {
-    var firstChild = fragment.firstChild,
-      lastChild = fragment.lastChild;
-    if (firstChild === lastChild) return lastChild || fragment;
-    var childNodes = fragment.childNodes;
-    var nodes = _toConsumableArray(childNodes);
-    return {
-      ELEMENT_NODE: ELEMENT_NODE,
-      nodeType: nodeType,
-      firstChild: firstChild,
-      lastChild: lastChild,
-      valueOf: function valueOf() {
-        if (childNodes.length !== nodes.length) fragment.append.apply(fragment, _toConsumableArray(nodes));
-        return fragment;
-      }
-    };
-  };
-
-  var isArray$1 = Array.isArray;
-
-  var aria = function aria(node) {
-    return function (values) {
-      for (var key in values) {
-        var name = key === 'role' ? key : "aria-".concat(key);
-        var value = values[key];
-        if (value == null) node.removeAttribute(name);else node.setAttribute(name, value);
-      }
-    };
-  };
-  var getValue = function getValue(value) {
-    return value == null ? value : value.valueOf();
-  };
-  var attribute = function attribute(node, name) {
-    var oldValue,
-      orphan = true;
-    var attributeNode = document.createAttributeNS(null, name);
-    return function (newValue) {
-      var value = getValue(newValue);
-      if (oldValue !== value) {
-        if ((oldValue = value) == null) {
-          if (!orphan) {
-            node.removeAttributeNode(attributeNode);
-            orphan = true;
-          }
-        } else {
-          attributeNode.value = value;
-          if (orphan) {
-            node.setAttributeNodeNS(attributeNode);
-            orphan = false;
-          }
-        }
-      }
-    };
-  };
-  var _boolean = function _boolean(node, key, oldValue) {
-    return function (newValue) {
-      var value = !!getValue(newValue);
-      if (oldValue !== value) {
-        // when IE won't be around anymore ...
-        // node.toggleAttribute(key, oldValue = !!value);
-        if (oldValue = value) node.setAttribute(key, '');else node.removeAttribute(key);
-      }
-    };
-  };
-  var data = function data(_ref) {
-    var dataset = _ref.dataset;
-    return function (values) {
-      for (var key in values) {
-        var value = values[key];
-        if (value == null) delete dataset[key];else dataset[key] = value;
-      }
-    };
-  };
-  var event = function event(node, name) {
-    var oldValue,
-      lower,
-      type = name.slice(2);
-    if (!(name in node) && (lower = name.toLowerCase()) in node) type = lower.slice(2);
-    return function (newValue) {
-      var info = isArray$1(newValue) ? newValue : [newValue, false];
-      if (oldValue !== info[0]) {
-        if (oldValue) node.removeEventListener(type, oldValue, info[1]);
-        if (oldValue = info[0]) node.addEventListener(type, oldValue, info[1]);
-      }
-    };
-  };
-  var ref = function ref(node) {
-    var oldValue;
-    return function (value) {
-      if (oldValue !== value) {
-        oldValue = value;
-        if (typeof value === 'function') value(node);else value.current = node;
-      }
-    };
-  };
-  var setter = function setter(node, key) {
-    return key === 'dataset' ? data(node) : function (value) {
-      node[key] = value;
-    };
-  };
-  var text = function text(node) {
-    var oldValue;
-    return function (newValue) {
-      var value = getValue(newValue);
-      if (oldValue != value) {
-        oldValue = value;
-        node.textContent = value == null ? '' : value;
-      }
-    };
-  };
 
   /**
    * ISC License
@@ -443,7 +150,7 @@ var uce = (function (exports) {
         // need to be added are not at the end, and in such case
         // the node to `insertBefore`, if the index is more than 0
         // must be retrieved, otherwise it's gonna be the first item.
-        var node = bEnd < bLength ? bStart ? get(b[bStart - 1], -0).nextSibling : get(b[bEnd - bStart], 0) : before;
+        var node = bEnd < bLength ? bStart ? get(b[bStart - 1], -0).nextSibling : get(b[bEnd], 0) : before;
         while (bStart < bEnd) parentNode.insertBefore(get(b[bStart++], 1), node);
       }
       // remove head or tail: fast path
@@ -474,8 +181,8 @@ var uce = (function (exports) {
         // or asymmetric too
         // [1, 2, 3, 4, 5]
         // [1, 2, 3, 5, 6, 4]
-        var _node = get(a[--aEnd], -1).nextSibling;
-        parentNode.insertBefore(get(b[bStart++], 1), get(a[aStart++], -1).nextSibling);
+        var _node = get(a[--aEnd], -0).nextSibling;
+        parentNode.insertBefore(get(b[bStart++], 1), get(a[aStart++], -0).nextSibling);
         parentNode.insertBefore(get(b[--bEnd], 1), _node);
         // mark the future index as identical (yeah, it's dirty, but cheap 👍)
         // The main reason to do this, is that when a[aEnd] will be reached,
@@ -540,466 +247,805 @@ var uce = (function (exports) {
     return b;
   });
 
-  var isArray = Array.isArray,
-    prototype = Array.prototype;
-  var indexOf = prototype.indexOf;
-  var _Proxy = new Proxy(document, {
-      get: function get(target, method) {
-        return target[method].bind(target);
-      }
-    }),
-    createDocumentFragment = _Proxy.createDocumentFragment,
-    createElement = _Proxy.createElement,
-    createElementNS = _Proxy.createElementNS,
-    createTextNode = _Proxy.createTextNode,
-    createTreeWalker = _Proxy.createTreeWalker,
-    importNode = _Proxy.importNode;
-  var createHTML = function createHTML(html) {
-    var template = createElement('template');
-    template.innerHTML = html;
-    return template.content;
-  };
-  var xml;
-  var createSVG = function createSVG(svg) {
-    if (!xml) xml = createElementNS('http://www.w3.org/2000/svg', 'svg');
-    xml.innerHTML = svg;
-    var content = createDocumentFragment();
-    content.append.apply(content, _toConsumableArray(xml.childNodes));
-    return content;
-  };
-  var createContent = function createContent(text, svg) {
-    return svg ? createSVG(text) : createHTML(text);
-  };
-
-  // from a generic path, retrieves the exact targeted node
-  var reducePath = function reducePath(_ref, i) {
-    var childNodes = _ref.childNodes;
-    return childNodes[i];
-  };
-
-  // this helper avoid code bloat around handleAnything() callback
-  var diff = function diff(comment, oldNodes, newNodes) {
-    return udomdiff(comment.parentNode,
-    // TODO: there is a possible edge case where a node has been
-    //       removed manually, or it was a keyed one, attached
-    //       to a shared reference between renders.
-    //       In this case udomdiff might fail at removing such node
-    //       as its parent won't be the expected one.
-    //       The best way to avoid this issue is to filter oldNodes
-    //       in search of those not live, or not in the current parent
-    //       anymore, but this would require both a change to uwire,
-    //       exposing a parentNode from the firstChild, as example,
-    //       but also a filter per each diff that should exclude nodes
-    //       that are not in there, penalizing performance quite a lot.
-    //       As this has been also a potential issue with domdiff,
-    //       and both lighterhtml and hyperHTML might fail with this
-    //       very specific edge case, I might as well document this possible
-    //       "diffing shenanigan" and call it a day.
-    oldNodes, newNodes, diffable, comment);
-  };
-
-  // if an interpolation represents a comment, the whole
-  // diffing will be related to such comment.
-  // This helper is in charge of understanding how the new
-  // content for such interpolation/hole should be updated
-  var handleAnything = function handleAnything(comment) {
-    var oldValue,
-      text,
-      nodes = [];
-    var anyContent = function anyContent(newValue) {
-      switch (_typeof(newValue)) {
-        // primitives are handled as text content
-        case 'string':
-        case 'number':
-        case 'boolean':
-          if (oldValue !== newValue) {
-            oldValue = newValue;
-            if (!text) text = createTextNode('');
-            text.data = newValue;
-            nodes = diff(comment, nodes, [text]);
-          }
-          break;
-        // null, and undefined are used to cleanup previous content
-        case 'object':
-        case 'undefined':
-          if (newValue == null) {
-            if (oldValue != newValue) {
-              oldValue = newValue;
-              nodes = diff(comment, nodes, []);
-            }
-            break;
-          }
-          // arrays and nodes have a special treatment
-          if (isArray(newValue)) {
-            oldValue = newValue;
-            // arrays can be used to cleanup, if empty
-            if (newValue.length === 0) nodes = diff(comment, nodes, []);
-            // or diffed, if these contains nodes or "wires"
-            else if (_typeof(newValue[0]) === 'object') nodes = diff(comment, nodes, newValue);
-            // in all other cases the content is stringified as is
-            else anyContent(String(newValue));
-            break;
-          }
-          // if the new value is a DOM node, or a wire, and it's
-          // different from the one already live, then it's diffed.
-          // if the node is a fragment, it's appended once via its childNodes
-          // There is no `else` here, meaning if the content
-          // is not expected one, nothing happens, as easy as that.
-          if (oldValue !== newValue) {
-            if ('ELEMENT_NODE' in newValue) {
-              oldValue = newValue;
-              nodes = diff(comment, nodes, newValue.nodeType === 11 ? _toConsumableArray(newValue.childNodes) : [newValue]);
-            } else {
-              var value = newValue.valueOf();
-              if (value !== newValue) anyContent(value);
-            }
-          }
-          break;
-        case 'function':
-          anyContent(newValue(comment));
-          break;
-      }
-    };
-    return anyContent;
-  };
-
-  // attributes can be:
-  //  * ref=${...}      for hooks and other purposes
-  //  * aria=${...}     for aria attributes
-  //  * ?boolean=${...} for boolean attributes
-  //  * .dataset=${...} for dataset related attributes
-  //  * .setter=${...}  for Custom Elements setters or nodes with setters
-  //                    such as buttons, details, options, select, etc
-  //  * @event=${...}   to explicitly handle event listeners
-  //  * onevent=${...}  to automatically handle event listeners
-  //  * generic=${...}  to handle an attribute just like an attribute
-  var handleAttribute = function handleAttribute(node, name /*, svg*/) {
-    switch (name[0]) {
-      case '?':
-        return _boolean(node, name.slice(1), false);
-      case '.':
-        return setter(node, name.slice(1));
-      case '@':
-        return event(node, 'on' + name.slice(1));
-      case 'o':
-        if (name[1] === 'n') return event(node, name);
-    }
-    switch (name) {
-      case 'ref':
-        return ref(node);
-      case 'aria':
-        return aria(node);
-    }
-    return attribute(node, name /*, svg*/);
-  };
-
-  // each mapped update carries the update type and its path
-  // the type is either node, attribute, or text, while
-  // the path is how to retrieve the related node to update.
-  // In the attribute case, the attribute name is also carried along.
-  function handlers(options) {
-    var type = options.type,
-      path = options.path;
-    var node = path.reduceRight(reducePath, this);
-    return type === 'node' ? handleAnything(node) : type === 'attr' ? handleAttribute(node, options.name /*, options.svg*/) : text(node);
-  }
-
-  // from a fragment container, create an array of indexes
-  // related to its child nodes, so that it's possible
-  // to retrieve later on exact node via reducePath
-  var createPath = function createPath(node) {
-    var path = [];
-    var _node = node,
-      parentNode = _node.parentNode;
-    while (parentNode) {
-      path.push(indexOf.call(parentNode.childNodes, node));
-      node = parentNode;
-      var _node2 = node;
-      parentNode = _node2.parentNode;
-    }
-    return path;
-  };
-
-  // the prefix is used to identify either comments, attributes, or nodes
-  // that contain the related unique id. In the attribute cases
-  // isµX="attribute-name" will be used to map current X update to that
-  // attribute name, while comments will be like <!--isµX-->, to map
-  // the update to that specific comment node, hence its parent.
-  // style and textarea will have <!--isµX--> text content, and are handled
-  // directly through text-only updates.
-  var prefix = 'isµ';
-
-  // Template Literals are unique per scope and static, meaning a template
-  // should be parsed once, and once only, as it will always represent the same
-  // content, within the exact same amount of updates each time.
-  // This cache relates each template to its unique content and updates.
-  var cache$1 = new WeakMapSet();
-
-  // a RegExp that helps checking nodes that cannot contain comments
-  var textOnly = /^(?:textarea|script|style|title|plaintext|xmp)$/;
-  var createCache = function createCache() {
-    return {
-      stack: [],
-      // each template gets a stack for each interpolation "hole"
-
-      entry: null,
-      // each entry contains details, such as:
-      //  * the template that is representing
-      //  * the type of node it represents (html or svg)
-      //  * the content fragment with all nodes
-      //  * the list of updates per each node (template holes)
-      //  * the "wired" node or fragment that will get updates
-      // if the template or type are different from the previous one
-      // the entry gets re-created each time
-
-      wire: null // each rendered node represent some wired content and
-      // this reference to the latest one. If different, the node
-      // will be cleaned up and the new "wire" will be appended
-    };
-  };
-
-  // the entry stored in the rendered node cache, and per each "hole"
-  var createEntry = function createEntry(type, template) {
-    var _mapUpdates = mapUpdates(type, template),
-      content = _mapUpdates.content,
-      updates = _mapUpdates.updates;
-    return {
-      type: type,
-      template: template,
-      content: content,
-      updates: updates,
-      wire: null
-    };
-  };
-
-  // a template is instrumented to be able to retrieve where updates are needed.
-  // Each unique template becomes a fragment, cloned once per each other
-  // operation based on the same template, i.e. data => html`<p>${data}</p>`
-  var mapTemplate = function mapTemplate(type, template) {
-    var svg = type === 'svg';
-    var text = instrument(template, prefix, svg);
-    var content = createContent(text, svg);
-    // once instrumented and reproduced as fragment, it's crawled
-    // to find out where each update is in the fragment tree
-    var tw = createTreeWalker(content, 1 | 128);
-    var nodes = [];
-    var length = template.length - 1;
-    var i = 0;
-    // updates are searched via unique names, linearly increased across the tree
-    // <div isµ0="attr" isµ1="other"><!--isµ2--><style><!--isµ3--</style></div>
-    var search = "".concat(prefix).concat(i);
-    while (i < length) {
-      var node = tw.nextNode();
-      // if not all updates are bound but there's nothing else to crawl
-      // it means that there is something wrong with the template.
-      if (!node) throw "bad template: ".concat(text);
-      // if the current node is a comment, and it contains isµX
-      // it means the update should take care of any content
-      if (node.nodeType === 8) {
-        // The only comments to be considered are those
-        // which content is exactly the same as the searched one.
-        if (node.data === search) {
-          nodes.push({
-            type: 'node',
-            path: createPath(node)
-          });
-          search = "".concat(prefix).concat(++i);
-        }
-      } else {
-        // if the node is not a comment, loop through all its attributes
-        // named isµX and relate attribute updates to this node and the
-        // attribute name, retrieved through node.getAttribute("isµX")
-        // the isµX attribute will be removed as irrelevant for the layout
-        // let svg = -1;
-        while (node.hasAttribute(search)) {
-          nodes.push({
-            type: 'attr',
-            path: createPath(node),
-            name: node.getAttribute(search)
-          });
-          node.removeAttribute(search);
-          search = "".concat(prefix).concat(++i);
-        }
-        // if the node was a style, textarea, or others, check its content
-        // and if it is <!--isµX--> then update tex-only this node
-        if (textOnly.test(node.localName) && node.textContent.trim() === "<!--".concat(search, "-->")) {
-          node.textContent = '';
-          nodes.push({
-            type: 'text',
-            path: createPath(node)
-          });
-          search = "".concat(prefix).concat(++i);
-        }
-      }
-    }
-    // once all nodes to update, or their attributes, are known, the content
-    // will be cloned in the future to represent the template, and all updates
-    // related to such content retrieved right away without needing to re-crawl
-    // the exact same template, and its content, more than once.
-    return {
-      content: content,
-      nodes: nodes
-    };
-  };
-
-  // if a template is unknown, perform the previous mapping, otherwise grab
-  // its details such as the fragment with all nodes, and updates info.
-  var mapUpdates = function mapUpdates(type, template) {
-    var _ref = cache$1.get(template) || cache$1.set(template, mapTemplate(type, template)),
-      content = _ref.content,
-      nodes = _ref.nodes;
-    // clone deeply the fragment
-    var fragment = importNode(content, true);
-    // and relate an update handler per each node that needs one
-    var updates = nodes.map(handlers, fragment);
-    // return the fragment and all updates to use within its nodes
-    return {
-      content: fragment,
-      updates: updates
-    };
-  };
-
-  // as html and svg can be nested calls, but no parent node is known
-  // until rendered somewhere, the unroll operation is needed to
-  // discover what to do with each interpolation, which will result
-  // into an update operation.
-  var unroll = function unroll(info, _ref2) {
-    var type = _ref2.type,
-      template = _ref2.template,
-      values = _ref2.values;
-    // interpolations can contain holes and arrays, so these need
-    // to be recursively discovered
-    var length = unrollValues(info, values);
-    var entry = info.entry;
-    // if the cache entry is either null or different from the template
-    // and the type this unroll should resolve, create a new entry
-    // assigning a new content fragment and the list of updates.
-    if (!entry || entry.template !== template || entry.type !== type) info.entry = entry = createEntry(type, template);
-    var _entry = entry,
-      content = _entry.content,
-      updates = _entry.updates,
-      wire = _entry.wire;
-    // even if the fragment and its nodes is not live yet,
-    // it is already possible to update via interpolations values.
-    for (var i = 0; i < length; i++) updates[i](values[i]);
-    // if the entry was new, or representing a different template or type,
-    // create a new persistent entity to use during diffing.
-    // This is simply a DOM node, when the template has a single container,
-    // as in `<p></p>`, or a "wire" in `<p></p><p></p>` and similar cases.
-    return wire || (entry.wire = persistent(content));
-  };
-
-  // the stack retains, per each interpolation value, the cache
-  // related to each interpolation value, or null, if the render
-  // was conditional and the value is not special (Array or Hole)
-  var unrollValues = function unrollValues(_ref3, values) {
-    var stack = _ref3.stack;
-    var length = values.length;
-    for (var i = 0; i < length; i++) {
-      var hole = values[i];
-      // each Hole gets unrolled and re-assigned as value
-      // so that domdiff will deal with a node/wire, not with a hole
-      if (hole instanceof Hole) values[i] = unroll(stack[i] || (stack[i] = createCache()), hole);
-      // arrays are recursively resolved so that each entry will contain
-      // also a DOM node or a wire, hence it can be diffed if/when needed
-      else if (isArray(hole)) unrollValues(stack[i] || (stack[i] = createCache()), hole);
-      // if the value is nothing special, the stack doesn't need to retain data
-      // this is useful also to cleanup previously retained data, if the value
-      // was a Hole, or an Array, but not anymore, i.e.:
-      // const update = content => html`<div>${content}</div>`;
-      // update(listOfItems); update(null); update(html`hole`)
-      else stack[i] = null;
-    }
-    if (length < stack.length) stack.splice(length);
-    return length;
+  var isArray = Array.isArray;
+  var getPrototypeOf = Object.getPrototypeOf,
+    getOwnPropertyDescriptor$1 = Object.getOwnPropertyDescriptor;
+  var SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
+  var empty = [];
+  var newRange = function newRange() {
+    return document.createRange();
   };
 
   /**
-   * Holds all details wrappers needed to render the content further on.
-   * @constructor
-   * @param {string} type The hole type, either `html` or `svg`.
-   * @param {string[]} template The template literals used to the define the content.
-   * @param {Array} values Zero, one, or more interpolated values to render.
+   * Set the `key` `value` pair to the *Map* or *WeakMap* and returns the `value`
+   * @template T
+   * @param {Map | WeakMap} map
+   * @param {any} key
+   * @param {T} value
+   * @returns {T}
    */
-  var Hole = /*#__PURE__*/_createClass(function Hole(type, template, values) {
-    _classCallCheck(this, Hole);
-    this.type = type;
-    this.template = template;
-    this.values = values;
+  var set = function set(map, key, value) {
+    map.set(key, value);
+    return value;
+  };
+
+  /**
+   * Return a descriptor, if any, for the referenced *Element*
+   * @param {Element} ref
+   * @param {string} prop
+   * @returns 
+   */
+  var gPD = function gPD(ref, prop) {
+    var desc;
+    do {
+      desc = getOwnPropertyDescriptor$1(ref, prop);
+    } while (!desc && (ref = getPrototypeOf(ref)));
+    return desc;
+  };
+
+  /* c8 ignore start */
+  /**
+   * @param {DocumentFragment} content
+   * @param {number[]} path
+   * @returns {Element}
+   */
+  var find = function find(content, path) {
+    return path.reduceRight(childNodesIndex, content);
+  };
+  var childNodesIndex = function childNodesIndex(node, i) {
+    return node.childNodes[i];
+  };
+  /* c8 ignore stop */
+
+  var ELEMENT_NODE = 1;
+  var COMMENT_NODE = 8;
+  var DOCUMENT_FRAGMENT_NODE = 11;
+
+  var setPrototypeOf = Object.setPrototypeOf;
+
+  /**
+   * @param {Function} Class any base class to extend without passing through it via super() call.
+   * @returns {Function} an extensible class for the passed one.
+   * @example
+   *  // creating this very same module utility
+   *  import custom from 'custom-function/factory';
+   *  const CustomFunction = custom(Function);
+   *  class MyFunction extends CustomFunction {}
+   *  const mf = new MyFunction(() => {});
+   */
+  var custom = (function (Class) {
+    function Custom(target) {
+      return setPrototypeOf(target, (this instanceof Custom ? this.constructor : void 0).prototype);
+    }
+    Custom.prototype = Class.prototype;
+    return Custom;
   });
 
-  // both `html` and `svg` template literal tags are polluted
-  // with a `for(ref[, id])` and a `node` tag too
-  var tag = function tag(type) {
-    // both `html` and `svg` tags have their own cache
-    var keyed = new WeakMapSet();
-    // keyed operations always re-use the same cache and unroll
-    // the template and its interpolations right away
-    var fixed = function fixed(cache) {
-      return function (template) {
-        for (var _len = arguments.length, values = new Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
-          values[_key - 1] = arguments[_key];
-        }
-        return unroll(cache, {
-          type: type,
-          template: template,
-          values: values
-        });
-      };
-    };
-    return Object.assign(
-    // non keyed operations are recognized as instance of Hole
-    // during the "unroll", recursively resolved and updated
-    function (template) {
-      for (var _len2 = arguments.length, values = new Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
-        values[_key2 - 1] = arguments[_key2];
-      }
-      return new Hole(type, template, values);
-    }, {
-      // keyed operations need a reference object, usually the parent node
-      // which is showing keyed results, and optionally a unique id per each
-      // related node, handy with JSON results and mutable list of objects
-      // that usually carry a unique identifier
-      "for": function _for(ref, id) {
-        var memo = keyed.get(ref) || keyed.set(ref, new MapSet());
-        return memo.get(id) || memo.set(id, fixed(createCache()));
-      },
-      // it is possible to create one-off content out of the box via node tag
-      // this might return the single created node, or a fragment with all
-      // nodes present at the root level and, of course, their child nodes
-      node: function node(template) {
-        for (var _len3 = arguments.length, values = new Array(_len3 > 1 ? _len3 - 1 : 0), _key3 = 1; _key3 < _len3; _key3++) {
-          values[_key3 - 1] = arguments[_key3];
-        }
-        return unroll(createCache(), new Hole(type, template, values)).valueOf();
-      }
-    });
+  var range$1;
+  /**
+   * @param {Node | Element} firstChild
+   * @param {Node | Element} lastChild
+   * @param {boolean} preserve
+   * @returns
+   */
+  var drop = (function (firstChild, lastChild, preserve) {
+    if (!range$1) range$1 = newRange();
+    /* c8 ignore start */
+    if (preserve) range$1.setStartAfter(firstChild);else range$1.setStartBefore(firstChild);
+    /* c8 ignore stop */
+    range$1.setEndAfter(lastChild);
+    range$1.deleteContents();
+    return firstChild;
+  });
+
+  function _callSuper$1(t, o, e) { return o = _getPrototypeOf(o), _possibleConstructorReturn(t, _isNativeReflectConstruct$1() ? Reflect.construct(o, e || [], _getPrototypeOf(t).constructor) : o.apply(t, e)); }
+  function _isNativeReflectConstruct$1() { try { var t = !Boolean.prototype.valueOf.call(Reflect.construct(Boolean, [], function () {})); } catch (t) {} return (_isNativeReflectConstruct$1 = function _isNativeReflectConstruct() { return !!t; })(); }
+  function _classPrivateFieldInitSpec(e, t, a) { _checkPrivateRedeclaration(e, t), t.set(e, a); }
+  function _checkPrivateRedeclaration(e, t) { if (t.has(e)) throw new TypeError("Cannot initialize the same private elements twice on an object"); }
+  function _classPrivateFieldSet(s, a, r) { return s.set(_assertClassBrand(s, a), r), r; }
+  function _classPrivateFieldGet(s, a) { return s.get(_assertClassBrand(s, a)); }
+  function _assertClassBrand(e, t, n) { if ("function" == typeof e ? e === t : e.has(t)) return arguments.length < 3 ? t : n; throw new TypeError("Private element is not present on this object"); }
+
+  /**
+   * @param {PersistentFragment} fragment
+   * @returns {Node | Element}
+   */
+  var _remove = function remove(_ref, preserve) {
+    var firstChild = _ref.firstChild,
+      lastChild = _ref.lastChild;
+    return drop(firstChild, lastChild, preserve);
+  };
+  var checkType = false;
+
+  /**
+   * @param {Node} node
+   * @param {1 | 0 | -0 | -1} operation
+   * @returns {Node}
+   */
+  var diffFragment = function diffFragment(node, operation) {
+    return checkType && node.nodeType === DOCUMENT_FRAGMENT_NODE ? 1 / operation < 0 ? operation ? _remove(node, true) : node.lastChild : operation ? node.valueOf() : node.firstChild : node;
+  };
+  var comment = function comment(value) {
+    return document.createComment(value);
   };
 
-  // each rendered node gets its own cache
-  var cache = new WeakMapSet();
-
-  // rendering means understanding what `html` or `svg` tags returned
-  // and it relates a specific node to its own unique cache.
-  // Each time the content to render changes, the node is cleaned up
-  // and the new new content is appended, and if such content is a Hole
-  // then it's "unrolled" to resolve all its inner nodes.
-  var render = function render(where, what) {
-    var hole = typeof what === 'function' ? what() : what;
-    var info = cache.get(where) || cache.set(where, createCache());
-    var wire = hole instanceof Hole ? unroll(info, hole) : hole;
-    if (wire !== info.wire) {
-      info.wire = wire;
-      // valueOf() simply returns the node itself, but in case it was a "wire"
-      // it will eventually re-append all nodes to its fragment so that such
-      // fragment can be re-appended many times in a meaningful way
-      // (wires are basically persistent fragments facades with special behavior)
-      where.replaceChildren(wire.valueOf());
+  /** @extends {DocumentFragment} */
+  var _firstChild = /*#__PURE__*/new WeakMap();
+  var _lastChild = /*#__PURE__*/new WeakMap();
+  var _nodes = /*#__PURE__*/new WeakMap();
+  var PersistentFragment = /*#__PURE__*/function (_custom) {
+    function PersistentFragment(fragment) {
+      var _this2;
+      var _this;
+      _classCallCheck(this, PersistentFragment);
+      _this = _callSuper$1(this, PersistentFragment, [fragment]);
+      _classPrivateFieldInitSpec(_this, _firstChild, comment('<>'));
+      _classPrivateFieldInitSpec(_this, _lastChild, comment('</>'));
+      _classPrivateFieldInitSpec(_this, _nodes, empty);
+      (_this2 = _this).replaceChildren.apply(_this2, [_classPrivateFieldGet(_firstChild, _this)].concat(_toConsumableArray(fragment.childNodes), [_classPrivateFieldGet(_lastChild, _this)]));
+      checkType = true;
+      return _this;
     }
-    return where;
+    _inherits(PersistentFragment, _custom);
+    return _createClass(PersistentFragment, [{
+      key: "firstChild",
+      get: function get() {
+        return _classPrivateFieldGet(_firstChild, this);
+      }
+    }, {
+      key: "lastChild",
+      get: function get() {
+        return _classPrivateFieldGet(_lastChild, this);
+      }
+    }, {
+      key: "parentNode",
+      get: function get() {
+        return _classPrivateFieldGet(_firstChild, this).parentNode;
+      }
+    }, {
+      key: "remove",
+      value: function remove() {
+        _remove(this, false);
+      }
+    }, {
+      key: "replaceWith",
+      value: function replaceWith(node) {
+        _remove(this, true).replaceWith(node);
+      }
+    }, {
+      key: "valueOf",
+      value: function valueOf() {
+        var parentNode = this.parentNode;
+        if (parentNode === this) {
+          if (_classPrivateFieldGet(_nodes, this) === empty) _classPrivateFieldSet(_nodes, this, _toConsumableArray(this.childNodes));
+        } else {
+          /* c8 ignore start */
+          // there are cases where a fragment might be just appended
+          // out of the box without valueOf() invoke (first render).
+          // When these are moved around and lose their parent and,
+          // such parent is not the fragment itself, it's possible there
+          // where changes or mutations in there to take care about.
+          // This is a render-only specific issue but it's tested and
+          // it's worth fixing to me to have more consistent fragments.
+          if (parentNode) {
+            var firstChild = this.firstChild,
+              lastChild = this.lastChild;
+            _classPrivateFieldSet(_nodes, this, [firstChild]);
+            while (firstChild !== lastChild) _classPrivateFieldGet(_nodes, this).push(firstChild = firstChild.nextSibling);
+          }
+          /* c8 ignore stop */
+          this.replaceChildren.apply(this, _toConsumableArray(_classPrivateFieldGet(_nodes, this)));
+        }
+        return this;
+      }
+    }]);
+  }(custom(DocumentFragment));
+
+  var setAttribute = function setAttribute(element, name, value) {
+    return element.setAttribute(name, value);
   };
-  var html = tag('html');
-  var svg = tag('svg');
+
+  /**
+   * @param {Element} element
+   * @param {string} name
+   * @returns {void}
+   */
+  var removeAttribute = function removeAttribute(element, name) {
+    return element.removeAttribute(name);
+  };
+
+  /**
+   * @template T
+   * @param {Element} element
+   * @param {T} value
+   * @returns {T}
+   */
+  var aria = function aria(element, value) {
+    for (var key in value) {
+      var $ = value[key];
+      var name = key === 'role' ? key : "aria-".concat(key);
+      if ($ == null) removeAttribute(element, name);else setAttribute(element, name, $);
+    }
+    return value;
+  };
+  var listeners;
+
+  /**
+   * @template T
+   * @param {Element} element
+   * @param {T} value
+   * @param {string} name
+   * @returns {T}
+   */
+  var at = function at(element, value, name) {
+    name = name.slice(1);
+    if (!listeners) listeners = new WeakMap();
+    var known = listeners.get(element) || set(listeners, element, {});
+    var current = known[name];
+    if (current && current[0]) element.removeEventListener.apply(element, [name].concat(_toConsumableArray(current)));
+    current = isArray(value) ? value : [value, false];
+    known[name] = current;
+    if (current[0]) element.addEventListener.apply(element, [name].concat(_toConsumableArray(current)));
+    return value;
+  };
+
+  /**
+   * @template T
+   * @param {import("./literals.js").Detail} detail
+   * @param {T} value
+   * @returns {T}
+   */
+  var hole = function hole(detail, value) {
+    var node = detail.t,
+      hole = detail.n;
+    var nullish = false;
+    switch (_typeof(value)) {
+      case 'object':
+        if (value !== null) {
+          (hole || node).replaceWith(detail.n = value.valueOf());
+          break;
+        }
+      case 'undefined':
+        nullish = true;
+      default:
+        node.data = nullish ? '' : value;
+        if (hole) {
+          detail.n = null;
+          hole.replaceWith(node);
+        }
+        break;
+    }
+    return value;
+  };
+
+  /**
+   * @template T
+   * @param {Element} element
+   * @param {T} value
+   * @returns {T}
+   */
+  var className = function className(element, value) {
+    return maybeDirect(element, value, value == null ? 'class' : 'className');
+  };
+
+  /**
+   * @template T
+   * @param {Element} element
+   * @param {T} value
+   * @returns {T}
+   */
+  var data = function data(element, value) {
+    var dataset = element.dataset;
+    for (var key in value) {
+      if (value[key] == null) delete dataset[key];else dataset[key] = value[key];
+    }
+    return value;
+  };
+
+  /**
+   * @template T
+   * @param {Element | CSSStyleDeclaration} ref
+   * @param {T} value
+   * @param {string} name
+   * @returns {T}
+   */
+  var direct = function direct(ref, value, name) {
+    return ref[name] = value;
+  };
+
+  /**
+   * @template T
+   * @param {Element} element
+   * @param {T} value
+   * @param {string} name
+   * @returns {T}
+   */
+  var dot = function dot(element, value, name) {
+    return direct(element, value, name.slice(1));
+  };
+
+  /**
+   * @template T
+   * @param {Element} element
+   * @param {T} value
+   * @param {string} name
+   * @returns {T}
+   */
+  var maybeDirect = function maybeDirect(element, value, name) {
+    return value == null ? (removeAttribute(element, name), value) : direct(element, value, name);
+  };
+
+  /**
+   * @template T
+   * @param {Element} element
+   * @param {T} value
+   * @returns {T}
+   */
+  var ref = function ref(element, value) {
+    return typeof value === 'function' ? value(element) : value.current = element, value;
+  };
+
+  /**
+   * @template T
+   * @param {Element} element
+   * @param {T} value
+   * @param {string} name
+   * @returns {T}
+   */
+  var regular = function regular(element, value, name) {
+    return value == null ? removeAttribute(element, name) : setAttribute(element, name, value), value;
+  };
+
+  /**
+   * @template T
+   * @param {Element} element
+   * @param {T} value
+   * @returns {T}
+   */
+  var style = function style(element, value) {
+    return value == null ? maybeDirect(element, value, 'style') : direct(element.style, value, 'cssText');
+  };
+
+  /**
+   * @template T
+   * @param {Element} element
+   * @param {T} value
+   * @param {string} name
+   * @returns {T}
+   */
+  var toggle = function toggle(element, value, name) {
+    return element.toggleAttribute(name.slice(1), value), value;
+  };
+
+  /**
+   * @param {Node} node
+   * @param {Node[]} value
+   * @param {string} _
+   * @param {Node[]} prev
+   * @returns {Node[]}
+   */
+  var array = function array(node, value, prev) {
+    // normal diff
+    var length = value.length;
+    node.data = "[".concat(length, "]");
+    if (length) return udomdiff(node.parentNode, prev, value, diffFragment, node);
+    /* c8 ignore start */
+    switch (prev.length) {
+      case 1:
+        prev[0].remove();
+      case 0:
+        break;
+      default:
+        drop(diffFragment(prev[0], 0), diffFragment(prev.at(-1), -0), false);
+        break;
+    }
+    /* c8 ignore stop */
+    return empty;
+  };
+  var attr = new Map([['aria', aria], ['class', className], ['data', data], ['ref', ref], ['style', style]]);
+
+  /**
+   * @param {HTMLElement | SVGElement} element
+   * @param {string} name
+   * @param {boolean} svg
+   * @returns
+   */
+  var attribute = function attribute(element, name, svg) {
+    var _gPD;
+    switch (name[0]) {
+      case '.':
+        return dot;
+      case '?':
+        return toggle;
+      case '@':
+        return at;
+      default:
+        return svg || 'ownerSVGElement' in element ? name === 'ref' ? ref : regular : attr.get(name) || (name in element ? name.startsWith('on') ? direct : (_gPD = gPD(element, name)) !== null && _gPD !== void 0 && _gPD.set ? maybeDirect : regular : regular);
+    }
+  };
+
+  /**
+   * @template T
+   * @param {Element} element
+   * @param {T} value
+   * @returns {T}
+   */
+  var text = function text(element, value) {
+    return element.textContent = value == null ? '' : value, value;
+  };
+
+  /** @typedef {import("./persistent-fragment.js").PersistentFragment} PersistentFragment */
+  /** @typedef {import("./rabbit.js").Hole} Hole */
+
+  /** @typedef {unknown} Value */
+  /** @typedef {Node | Element | PersistentFragment} Target */
+  /** @typedef {null | undefined | string | number | boolean | Node | Element | PersistentFragment} DOMValue */
+  /** @typedef {Hole | Node} ArrayValue */
+
+  var abc = function abc(a, b, c) {
+    return {
+      a: a,
+      b: b,
+      c: c
+    };
+  };
+  var bc = function bc(b, c) {
+    return {
+      b: b,
+      c: c
+    };
+  };
+
+  /**
+   * @typedef {Object} Detail
+   * @property {any} v the current value of the interpolation / hole
+   * @property {function} u the callback to update the value
+   * @property {Node} t the target comment node or element
+   * @property {string | null | Node} n the attribute name, if any, or `null`
+   * @property {Cache | ArrayValue[] | null} c the cache value for this detail
+   */
+
+  /**
+   * @returns {Detail}
+   */
+  var detail = function detail(u, t, n, c) {
+    return {
+      v: empty,
+      u: u,
+      t: t,
+      n: n,
+      c: c
+    };
+  };
+
+  /**
+   * @typedef {Object} Entry
+   * @property {number[]} a the path to retrieve the node
+   * @property {function} b the update function
+   * @property {string | null} c the attribute name, if any, or `null`
+   */
+
+  /**
+   * @typedef {Object} Cache
+   * @property {null | TemplateStringsArray} a the cached template
+   * @property {null | Node | PersistentFragment} b the node returned when parsing the template
+   * @property {Detail[]} c the list of updates to perform
+   */
+
+  /**
+   * @returns {Cache}
+   */
+  var cache$1 = function cache() {
+    return abc(null, null, empty);
+  };
+
+  /** @param {(template: TemplateStringsArray, values: any[]) => import("./parser.js").Resolved} parse */
+  var create$1 = (function (parse) {
+    return (
+      /**
+       * @param {TemplateStringsArray} template
+       * @param {any[]} values
+       * @returns {import("./literals.js").Cache}
+       */
+      function (template, values) {
+        var _parse = parse(template, values),
+          fragment = _parse.a,
+          entries = _parse.b,
+          direct = _parse.c;
+        var root = document.importNode(fragment, true);
+        /** @type {import("./literals.js").Detail[]} */
+        var details = empty;
+        if (entries !== empty) {
+          details = [];
+          for (var current, prev, i = 0; i < entries.length; i++) {
+            var _entries$i = entries[i],
+              path = _entries$i.a,
+              update = _entries$i.b,
+              name = _entries$i.c;
+            var node = path === prev ? current : current = find(root, prev = path);
+            details[i] = detail(update, node, name, update === array ? [] : update === hole ? cache$1() : null);
+          }
+        }
+        return bc(direct ? root.firstChild : new PersistentFragment(root), details);
+      }
+    );
+  });
+
+  var TEXT_ELEMENTS = /^(?:plaintext|script|style|textarea|title|xmp)$/i;
+  var VOID_ELEMENTS = /^(?:area|base|br|col|embed|hr|img|input|keygen|link|menuitem|meta|param|source|track|wbr)$/i;
+
+  var elements = /<([a-zA-Z0-9]+[a-zA-Z0-9:._-]*)([^>]*?)(\/?)>/g;
+  var attributes = /([^\s\\>"'=]+)\s*=\s*(['"]?)\x01/g;
+  var holes = /[\x01\x02]/g;
+
+  // \x01 Node.ELEMENT_NODE
+  // \x02 Node.ATTRIBUTE_NODE
+
+  /**
+   * Given a template, find holes as both nodes and attributes and
+   * return a string with holes as either comment nodes or named attributes.
+   * @param {string[]} template a template literal tag array
+   * @param {string} prefix prefix to use per each comment/attribute
+   * @param {boolean} xml enforces self-closing tags
+   * @returns {string} X/HTML with prefixed comments or attributes
+   */
+  var parser$1 = (function (template, prefix, xml) {
+    var i = 0;
+    return template.join('\x01').trim().replace(elements, function (_, name, attrs, selfClosing) {
+      return "<".concat(name).concat(attrs.replace(attributes, '\x02=$2$1').trimEnd()).concat(selfClosing ? xml || VOID_ELEMENTS.test(name) ? ' /' : "></".concat(name) : '', ">");
+    }).replace(holes, function (hole) {
+      return hole === '\x01' ? "<!--".concat(prefix + i++, "-->") : prefix + i++;
+    });
+  });
+
+  var template = document.createElement('template'),
+    svg$1,
+    range;
+
+  /**
+   * @param {string} text
+   * @param {boolean} xml
+   * @returns {DocumentFragment}
+   */
+  var createContent = (function (text, xml) {
+    if (xml) {
+      if (!svg$1) {
+        svg$1 = document.createElementNS(SVG_NAMESPACE, 'svg');
+        range = newRange();
+        range.selectNodeContents(svg$1);
+      }
+      return range.createContextualFragment(text);
+    }
+    template.innerHTML = text;
+    var _template = template,
+      content = _template.content;
+    template = template.cloneNode(false);
+    return content;
+  });
+
+  /** @typedef {import("./literals.js").Entry} Entry */
+
+  /**
+   * @typedef {Object} Resolved
+   * @param {DocumentFragment} f content retrieved from the template
+   * @param {Entry[]} e entries per each hole in the template
+   * @param {boolean} d direct node to handle
+   */
+
+  /**
+   * @param {Element} node
+   * @returns {number[]}
+   */
+  var createPath = function createPath(node) {
+    var path = [];
+    var parentNode;
+    while (parentNode = node.parentNode) {
+      path.push(path.indexOf.call(parentNode.childNodes, node));
+      node = parentNode;
+    }
+    return path;
+  };
+  var textNode = function textNode() {
+    return document.createTextNode('');
+  };
+
+  /**
+   * @param {TemplateStringsArray} template
+   * @param {boolean} xml
+   * @returns {Resolved}
+   */
+  var resolve = function resolve(template, values, xml) {
+    var content = createContent(parser$1(template, prefix, xml), xml);
+    var length = template.length;
+    var entries = empty;
+    if (length > 1) {
+      var replace = [];
+      var tw = document.createTreeWalker(content, 1 | 128);
+      var i = 0,
+        search = "".concat(prefix).concat(i++);
+      entries = [];
+      while (i < length) {
+        var node = tw.nextNode();
+        // these are holes or arrays
+        if (node.nodeType === COMMENT_NODE) {
+          if (node.data === search) {
+            // ⚠️ once array, always array!
+            var update = isArray(values[i - 1]) ? array : hole;
+            if (update === hole) replace.push(node);
+            entries.push(abc(createPath(node), update, null));
+            search = "".concat(prefix).concat(i++);
+          }
+        } else {
+          var path = void 0;
+          // these are attributes
+          while (node.hasAttribute(search)) {
+            if (!path) path = createPath(node);
+            var name = node.getAttribute(search);
+            entries.push(abc(path, attribute(node, name, xml), name));
+            removeAttribute(node, search);
+            search = "".concat(prefix).concat(i++);
+          }
+          // these are special text-only nodes
+          if (!xml && TEXT_ELEMENTS.test(node.localName) && node.textContent.trim() === "<!--".concat(search, "-->")) {
+            entries.push(abc(path || createPath(node), text, null));
+            search = "".concat(prefix).concat(i++);
+          }
+        }
+      }
+      // can't replace holes on the fly or the tree walker fails
+      for (i = 0; i < replace.length; i++) replace[i].replaceWith(textNode());
+    }
+
+    // need to decide if there should be a persistent fragment
+    var childNodes = content.childNodes;
+    var len = childNodes.length;
+
+    // html`` or svg`` to signal an empty content
+    // these nodes can be passed directly as never mutated
+    if (len < 1) {
+      len = 1;
+      content.appendChild(textNode());
+    }
+    // html`${'b'}` or svg`${[]}` cases
+    else if (len === 1 &&
+    // ignore html`static` or svg`static` because
+    // these nodes can be passed directly as never mutated
+    length !== 1 && childNodes[0].nodeType !== ELEMENT_NODE) {
+      // use a persistent fragment for these cases too
+      len = 0;
+    }
+    return set(cache, template, abc(content, entries, len === 1));
+  };
+
+  /** @type {WeakMap<TemplateStringsArray, Resolved>} */
+  var cache = new WeakMap();
+  var prefix = 'isµ';
+
+  /**
+   * @param {boolean} xml
+   * @returns {(template: TemplateStringsArray, values: any[]) => Resolved}
+   */
+  var parser = (function (xml) {
+    return function (template, values) {
+      return cache.get(template) || resolve(template, values, xml);
+    };
+  });
+
+  var createHTML = create$1(parser(false));
+  var createSVG = create$1(parser(true));
+
+  /**
+   * @param {import("./literals.js").Cache} info
+   * @param {Hole} hole
+   * @returns {Node}
+   */
+  var _unroll = function unroll(info, _ref) {
+    var s = _ref.s,
+      t = _ref.t,
+      v = _ref.v;
+    if (info.a !== t) {
+      var _ref2 = (s ? createSVG : createHTML)(t, v),
+        b = _ref2.b,
+        c = _ref2.c;
+      info.a = t;
+      info.b = b;
+      info.c = c;
+    }
+    for (var _c = info.c, i = 0; i < _c.length; i++) {
+      var value = v[i];
+      var detail = _c[i];
+      switch (detail.u) {
+        case array:
+          detail.v = array(detail.t, unrollValues(detail.c, value), detail.v);
+          break;
+        case hole:
+          var current = value instanceof Hole ? _unroll(detail.c || (detail.c = cache$1()), value) : (detail.c = null, value);
+          if (current !== detail.v) detail.v = hole(detail, current);
+          break;
+        default:
+          if (value !== detail.v) detail.v = detail.u(detail.t, value, detail.n, detail.v);
+          break;
+      }
+    }
+    return info.b;
+  };
+
+  /**
+   * @param {Cache} cache
+   * @param {any[]} values
+   * @returns {number}
+   */
+  var unrollValues = function unrollValues(stack, values) {
+    var i = 0,
+      length = values.length;
+    if (length < stack.length) stack.splice(length);
+    for (; i < length; i++) {
+      var value = values[i];
+      if (value instanceof Hole) values[i] = _unroll(stack[i] || (stack[i] = cache$1()), value);else stack[i] = null;
+    }
+    return values;
+  };
+
+  /**
+   * Holds all details needed to render the content on a render.
+   * @constructor
+   * @param {boolean} svg The content type.
+   * @param {TemplateStringsArray} template The template literals used to the define the content.
+   * @param {any[]} values Zero, one, or more interpolated values to render.
+   */
+  var Hole = /*#__PURE__*/function () {
+    function Hole(svg, template, values) {
+      _classCallCheck(this, Hole);
+      this.s = svg;
+      this.t = template;
+      this.v = values;
+    }
+    return _createClass(Hole, [{
+      key: "toDOM",
+      value: function toDOM() {
+        var info = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : cache$1();
+        return _unroll(info, this);
+      }
+    }]);
+  }();
+
+  /** @typedef {import("../rabbit.js").Hole} Hole */
+
+  /** @type {WeakMap<Element | DocumentFragment, import("../literals.js").Cache>} */
+  var known = new WeakMap();
+
+  /**
+   * Render with smart updates within a generic container.
+   * @template T
+   * @param {T} where the DOM node where to render content
+   * @param {(() => Hole) | Hole} what the hole to render
+   * @returns
+   */
+  var render = (function (where, what) {
+    var info = known.get(where) || set(known, where, cache$1());
+    var b = info.b;
+    if (b !== (typeof what === 'function' ? what() : what).toDOM(info)) where.replaceChildren(info.b.valueOf());
+    return where;
+  });
+
+  /*! (c) Andrea Giammarchi - MIT */
+
+  /** @typedef {import("./literals.js").Value} Value */
+
+  var tag = function tag(svg) {
+    return function (template) {
+      for (var _len = arguments.length, values = new Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
+        values[_key - 1] = arguments[_key];
+      }
+      return new Hole(svg, template, values);
+    };
+  };
+
+  /** @type {(template: TemplateStringsArray, ...values:Value[]) => Hole} A tag to render HTML content. */
+  var html = tag(false);
+
+  /** @type {(template: TemplateStringsArray, ...values:Value[]) => Hole} A tag to render SVG content. */
+  var svg = tag(true);
 
   var umap = (function (_) {
     return {
@@ -1082,8 +1128,8 @@ var uce = (function (exports) {
     };
   });
 
-  function _createSuper(Derived) { var hasNativeReflectConstruct = _isNativeReflectConstruct(); return function _createSuperInternal() { var Super = _getPrototypeOf(Derived), result; if (hasNativeReflectConstruct) { var NewTarget = _getPrototypeOf(this).constructor; result = Reflect.construct(Super, arguments, NewTarget); } else { result = Super.apply(this, arguments); } return _possibleConstructorReturn(this, result); }; }
-  function _isNativeReflectConstruct() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Boolean.prototype.valueOf.call(Reflect.construct(Boolean, [], function () {})); return true; } catch (e) { return false; } }
+  function _callSuper(t, o, e) { return o = _getPrototypeOf(o), _possibleConstructorReturn(t, _isNativeReflectConstruct() ? Reflect.construct(o, e || [], _getPrototypeOf(t).constructor) : o.apply(t, e)); }
+  function _isNativeReflectConstruct() { try { var t = !Boolean.prototype.valueOf.call(Reflect.construct(Boolean, [], function () {})); } catch (t) {} return (_isNativeReflectConstruct = function _isNativeReflectConstruct() { return !!t; })(); }
   var reactive = domHandler({
     dom: true
   });
@@ -1257,12 +1303,11 @@ var uce = (function (exports) {
       c = _info.c,
       e = _info.e;
     var MicroElement = /*#__PURE__*/function (_c) {
-      _inherits(MicroElement, _c);
-      var _super = _createSuper(MicroElement);
       function MicroElement() {
         _classCallCheck(this, MicroElement);
-        return _super.apply(this, arguments);
+        return _callSuper(this, MicroElement, arguments);
       }
+      _inherits(MicroElement, _c);
       return _createClass(MicroElement);
     }(c);
     defineProperties(MicroElement, statics);
@@ -1287,13 +1332,12 @@ var uce = (function (exports) {
     // element on the page, it will break once the registry
     // will try to upgrade such element so ... HTMLElement it is.
     CE.define('uce-lib', /*#__PURE__*/function (_info$c) {
-      _inherits(_class, _info$c);
-      var _super2 = _createSuper(_class);
       function _class() {
         _classCallCheck(this, _class);
-        return _super2.apply(this, arguments);
+        return _callSuper(this, _class, arguments);
       }
-      _createClass(_class, null, [{
+      _inherits(_class, _info$c);
+      return _createClass(_class, null, [{
         key: "define",
         get: function get() {
           return define;
@@ -1319,7 +1363,6 @@ var uce = (function (exports) {
           return css;
         }
       }]);
-      return _class;
     }(info(element).c));
   function bind(method) {
     this[method] = this[method].bind(this);
