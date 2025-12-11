@@ -79,1852 +79,6 @@ var uce = (function (exports) {
     }), e && _setPrototypeOf(t, e);
   }
 
-  var DEBUG = true;
-
-  function _superPropBase(t, o) {
-    for (; !{}.hasOwnProperty.call(t, o) && null !== (t = _getPrototypeOf(t)););
-    return t;
-  }
-
-  function _defineProperty(e, r, t) {
-    return (r = toPropertyKey(r)) in e ? Object.defineProperty(e, r, {
-      value: t,
-      enumerable: true,
-      configurable: true,
-      writable: true
-    }) : e[r] = t, e;
-  }
-
-  function _get$1() {
-    return _get$1 = "undefined" != typeof Reflect && Reflect.get ? Reflect.get.bind() : function (e, t, r) {
-      var p = _superPropBase(e, t);
-      if (p) {
-        var n = Object.getOwnPropertyDescriptor(p, t);
-        return n.get ? n.get.call(arguments.length < 3 ? e : r) : n.value;
-      }
-    }, _get$1.apply(null, arguments);
-  }
-
-  var ReactiveFlags;
-  (function (ReactiveFlags) {
-    ReactiveFlags[ReactiveFlags["None"] = 0] = "None";
-    ReactiveFlags[ReactiveFlags["Mutable"] = 1] = "Mutable";
-    ReactiveFlags[ReactiveFlags["Watching"] = 2] = "Watching";
-    ReactiveFlags[ReactiveFlags["RecursedCheck"] = 4] = "RecursedCheck";
-    ReactiveFlags[ReactiveFlags["Recursed"] = 8] = "Recursed";
-    ReactiveFlags[ReactiveFlags["Dirty"] = 16] = "Dirty";
-    ReactiveFlags[ReactiveFlags["Pending"] = 32] = "Pending";
-  })(ReactiveFlags || (ReactiveFlags = {}));
-  function createReactiveSystem(_ref) {
-    var update = _ref.update,
-      notify = _ref.notify,
-      unwatched = _ref.unwatched;
-    var currentVersion = 0;
-    return {
-      link: link,
-      unlink: unlink,
-      propagate: propagate,
-      checkDirty: checkDirty,
-      endTracking: endTracking,
-      startTracking: startTracking,
-      shallowPropagate: shallowPropagate
-    };
-    function link(dep, sub) {
-      var prevDep = sub.depsTail;
-      if (prevDep !== undefined && prevDep.dep === dep) {
-        return;
-      }
-      var nextDep = prevDep !== undefined ? prevDep.nextDep : sub.deps;
-      if (nextDep !== undefined && nextDep.dep === dep) {
-        nextDep.version = currentVersion;
-        sub.depsTail = nextDep;
-        return;
-      }
-      var prevSub = dep.subsTail;
-      if (prevSub !== undefined && prevSub.version === currentVersion && prevSub.sub === sub) {
-        return;
-      }
-      var newLink = sub.depsTail = dep.subsTail = {
-        version: currentVersion,
-        dep: dep,
-        sub: sub,
-        prevDep: prevDep,
-        nextDep: nextDep,
-        prevSub: prevSub,
-        nextSub: undefined
-      };
-      if (nextDep !== undefined) {
-        nextDep.prevDep = newLink;
-      }
-      if (prevDep !== undefined) {
-        prevDep.nextDep = newLink;
-      } else {
-        sub.deps = newLink;
-      }
-      if (prevSub !== undefined) {
-        prevSub.nextSub = newLink;
-      } else {
-        dep.subs = newLink;
-      }
-    }
-    function unlink(link) {
-      var sub = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : link.sub;
-      var dep = link.dep;
-      var prevDep = link.prevDep;
-      var nextDep = link.nextDep;
-      var nextSub = link.nextSub;
-      var prevSub = link.prevSub;
-      if (nextDep !== undefined) {
-        nextDep.prevDep = prevDep;
-      } else {
-        sub.depsTail = prevDep;
-      }
-      if (prevDep !== undefined) {
-        prevDep.nextDep = nextDep;
-      } else {
-        sub.deps = nextDep;
-      }
-      if (nextSub !== undefined) {
-        nextSub.prevSub = prevSub;
-      } else {
-        dep.subsTail = prevSub;
-      }
-      if (prevSub !== undefined) {
-        prevSub.nextSub = nextSub;
-      } else if ((dep.subs = nextSub) === undefined) {
-        unwatched(dep);
-      }
-      return nextDep;
-    }
-    function propagate(link) {
-      var next = link.nextSub;
-      var stack;
-      top: do {
-        var sub = link.sub;
-        var flags = sub.flags;
-        if (!(flags & 60)) {
-          sub.flags = flags | 32;
-        } else if (!(flags & 12)) {
-          flags = 0;
-        } else if (!(flags & 4)) {
-          sub.flags = flags & -9 | 32;
-        } else if (!(flags & 48) && isValidLink(link, sub)) {
-          sub.flags = flags | 40;
-          flags &= 1;
-        } else {
-          flags = 0;
-        }
-        if (flags & 2) {
-          notify(sub);
-        }
-        if (flags & 1) {
-          var subSubs = sub.subs;
-          if (subSubs !== undefined) {
-            var nextSub = (link = subSubs).nextSub;
-            if (nextSub !== undefined) {
-              stack = {
-                value: next,
-                prev: stack
-              };
-              next = nextSub;
-            }
-            continue;
-          }
-        }
-        if ((link = next) !== undefined) {
-          next = link.nextSub;
-          continue;
-        }
-        while (stack !== undefined) {
-          link = stack.value;
-          stack = stack.prev;
-          if (link !== undefined) {
-            next = link.nextSub;
-            continue top;
-          }
-        }
-        break;
-      } while (true);
-    }
-    function startTracking(sub) {
-      ++currentVersion;
-      sub.depsTail = undefined;
-      sub.flags = sub.flags & -57 | 4;
-    }
-    function endTracking(sub) {
-      var depsTail = sub.depsTail;
-      var toRemove = depsTail !== undefined ? depsTail.nextDep : sub.deps;
-      while (toRemove !== undefined) {
-        toRemove = unlink(toRemove, sub);
-      }
-      sub.flags &= -5;
-    }
-    function checkDirty(link, sub) {
-      var stack;
-      var checkDepth = 0;
-      var dirty = false;
-      top: do {
-        var dep = link.dep;
-        var flags = dep.flags;
-        if (sub.flags & 16) {
-          dirty = true;
-        } else if ((flags & 17) === 17) {
-          if (update(dep)) {
-            var subs = dep.subs;
-            if (subs.nextSub !== undefined) {
-              shallowPropagate(subs);
-            }
-            dirty = true;
-          }
-        } else if ((flags & 33) === 33) {
-          if (link.nextSub !== undefined || link.prevSub !== undefined) {
-            stack = {
-              value: link,
-              prev: stack
-            };
-          }
-          link = dep.deps;
-          sub = dep;
-          ++checkDepth;
-          continue;
-        }
-        if (!dirty) {
-          var nextDep = link.nextDep;
-          if (nextDep !== undefined) {
-            link = nextDep;
-            continue;
-          }
-        }
-        while (checkDepth--) {
-          var firstSub = sub.subs;
-          var hasMultipleSubs = firstSub.nextSub !== undefined;
-          if (hasMultipleSubs) {
-            link = stack.value;
-            stack = stack.prev;
-          } else {
-            link = firstSub;
-          }
-          if (dirty) {
-            if (update(sub)) {
-              if (hasMultipleSubs) {
-                shallowPropagate(firstSub);
-              }
-              sub = link.sub;
-              continue;
-            }
-            dirty = false;
-          } else {
-            sub.flags &= -33;
-          }
-          sub = link.sub;
-          var _nextDep = link.nextDep;
-          if (_nextDep !== undefined) {
-            link = _nextDep;
-            continue top;
-          }
-        }
-        return dirty;
-      } while (true);
-    }
-    function shallowPropagate(link) {
-      do {
-        var sub = link.sub;
-        var flags = sub.flags;
-        if ((flags & 48) === 32) {
-          sub.flags = flags | 16;
-          if (flags & 2) {
-            notify(sub);
-          }
-        }
-      } while ((link = link.nextSub) !== undefined);
-    }
-    function isValidLink(checkLink, sub) {
-      var link = sub.depsTail;
-      while (link !== undefined) {
-        if (link === checkLink) {
-          return true;
-        }
-        link = link.prevDep;
-      }
-      return false;
-    }
-  }
-
-  var pauseStack = [];
-  var _createReactiveSystem = createReactiveSystem({
-      update: function update(signal) {
-        if ('getter' in signal) {
-          return updateComputed(signal);
-        } else {
-          return updateSignal(signal, signal.value);
-        }
-      },
-      notify: notify,
-      unwatched: function unwatched(node) {
-        if ('getter' in node) {
-          var toRemove = node.deps;
-          if (toRemove !== undefined) {
-            node.flags = 17;
-            do {
-              toRemove = unlink(toRemove, node);
-            } while (toRemove !== undefined);
-          }
-        } else if (!('previousValue' in node)) {
-          effectOper.call(node);
-        }
-      }
-    }),
-    link = _createReactiveSystem.link,
-    unlink = _createReactiveSystem.unlink;
-    _createReactiveSystem.propagate;
-    _createReactiveSystem.checkDirty;
-    var endTracking = _createReactiveSystem.endTracking,
-    startTracking = _createReactiveSystem.startTracking;
-    _createReactiveSystem.shallowPropagate;
-  var activeSub;
-  var activeScope;
-  function setCurrentSub(sub) {
-    var prevSub = activeSub;
-    activeSub = sub;
-    return prevSub;
-  }
-  function setCurrentScope(scope) {
-    var prevScope = activeScope;
-    activeScope = scope;
-    return prevScope;
-  }
-  function pauseTracking() {
-    pauseStack.push(setCurrentSub(undefined));
-  }
-  function resumeTracking() {
-    setCurrentSub(pauseStack.pop());
-  }
-  function effect(fn) {
-    var e = {
-      fn: fn,
-      subs: undefined,
-      subsTail: undefined,
-      deps: undefined,
-      depsTail: undefined,
-      flags: 2
-    };
-    if (activeSub !== undefined) {
-      link(e, activeSub);
-    } else if (activeScope !== undefined) {
-      link(e, activeScope);
-    }
-    var prev = setCurrentSub(e);
-    try {
-      e.fn();
-    } finally {
-      setCurrentSub(prev);
-    }
-    return effectOper.bind(e);
-  }
-  function effectScope(fn) {
-    var e = {
-      deps: undefined,
-      depsTail: undefined,
-      subs: undefined,
-      subsTail: undefined,
-      flags: 0
-    };
-    if (activeScope !== undefined) {
-      link(e, activeScope);
-    }
-    var prevSub = setCurrentSub(undefined);
-    var prevScope = setCurrentScope(e);
-    try {
-      fn();
-    } finally {
-      setCurrentScope(prevScope);
-      setCurrentSub(prevSub);
-    }
-    return effectOper.bind(e);
-  }
-  function updateComputed(c) {
-    var prevSub = setCurrentSub(c);
-    startTracking(c);
-    try {
-      var oldValue = c.value;
-      return oldValue !== (c.value = c.getter(oldValue));
-    } finally {
-      setCurrentSub(prevSub);
-      endTracking(c);
-    }
-  }
-  function updateSignal(s, value) {
-    s.flags = 1;
-    return s.previousValue !== (s.previousValue = value);
-  }
-  function notify(e) {
-    var flags = e.flags;
-    if (!(flags & 64)) {
-      e.flags = flags | 64;
-      var subs = e.subs;
-      if (subs !== undefined) {
-        notify(subs.sub);
-      }
-    }
-  }
-  function effectOper() {
-    var dep = this.deps;
-    while (dep !== undefined) {
-      dep = unlink(dep, this);
-    }
-    var sub = this.subs;
-    if (sub !== undefined) {
-      unlink(sub);
-    }
-    this.flags = 0;
-  }
-
-  /**
-   * @template T
-   * @param {function(): T} fn
-   * @returns {T}
-   */
-  var untracked = function untracked(fn) {
-    pauseTracking();
-    try {
-      return fn();
-    } finally {
-      resumeTracking();
-    }
-  };
-
-  /**
-   * @template T
-   */
-  var Signal = /*#__PURE__*/function () {
-    /**
-     * @param {(value: T) => T} fn
-     * @param {T} value
-     */
-    function Signal(fn, value) {
-      _classCallCheck(this, Signal);
-      this._ = fn(value);
-    }
-
-    /** @returns {T} */
-    return _createClass(Signal, [{
-      key: "value",
-      get: function get() {
-        return this._();
-      }
-
-      /** @param {T} value */,
-      set: function set(value) {
-        this._(value);
-      }
-
-      /** @returns {T} */
-    }, {
-      key: "peek",
-      value: function peek() {
-        return untracked(this._);
-      }
-
-      /** @returns {T} */
-    }, {
-      key: "valueOf",
-      value: function valueOf() {
-        return this.value;
-      }
-    }]);
-  }();
-
-  function _classPrivateFieldInitSpec(e, t, a) { _checkPrivateRedeclaration(e, t), t.set(e, a); }
-  function _checkPrivateRedeclaration(e, t) { if (t.has(e)) throw new TypeError("Cannot initialize the same private elements twice on an object"); }
-  function _classPrivateFieldGet(s, a) { return s.get(_assertClassBrand(s, a)); }
-  function _classPrivateFieldSet(s, a, r) { return s.set(_assertClassBrand(s, a), r), r; }
-  function _assertClassBrand(e, t, n) { if ("function" == typeof e ? e === t : e.has(t)) return arguments.length < 3 ? t : n; throw new TypeError("Private element is not present on this object"); }
-  var isArray = Array.isArray;
-  var assign = Object.assign,
-    defineProperties$2 = Object.defineProperties,
-    entries = Object.entries,
-    freeze = Object.freeze;
-  var _data = /*#__PURE__*/new WeakMap();
-  var Unsafe = /*#__PURE__*/function () {
-    function Unsafe(data) {
-      _classCallCheck(this, Unsafe);
-      _classPrivateFieldInitSpec(this, _data, void 0);
-      _classPrivateFieldSet(_data, this, data);
-    }
-    return _createClass(Unsafe, [{
-      key: "valueOf",
-      value: function valueOf() {
-        return _classPrivateFieldGet(_data, this);
-      }
-    }, {
-      key: "toString",
-      value: function toString() {
-        return String(_classPrivateFieldGet(_data, this));
-      }
-    }]);
-  }();
-  var createComment = function createComment(value) {
-    return document.createComment(value);
-  };
-  /* c8 ignore stop */
-
-  function _callSuper$2(t, o, e) { return o = _getPrototypeOf(o), _possibleConstructorReturn(t, _isNativeReflectConstruct$3() ? Reflect.construct(o, e || [], _getPrototypeOf(t).constructor) : o.apply(t, e)); }
-  function _isNativeReflectConstruct$3() { try { var t = !Boolean.prototype.valueOf.call(Reflect.construct(Boolean, [], function () {})); } catch (t) {} return (_isNativeReflectConstruct$3 = function _isNativeReflectConstruct() { return !!t; })(); }
-  var ELEMENT = 1;
-  var ATTRIBUTE$1 = 2;
-  var TEXT$1 = 3;
-  var COMMENT$1 = 8;
-  var DOCUMENT_TYPE = 10;
-  var FRAGMENT = 11;
-  var COMPONENT$1 = 42;
-  var TEXT_ELEMENTS = new Set(['plaintext', 'script', 'style', 'textarea', 'title', 'xmp']);
-  var VOID_ELEMENTS = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'keygen', 'link', 'menuitem', 'meta', 'param', 'source', 'track', 'wbr']);
-  var props$1 = freeze({});
-  var children = freeze([]);
-  var append = function append(node, child) {
-    if (node.children === children) node.children = [];
-    node.children.push(child);
-    child.parent = node;
-    return child;
-  };
-  var prop = function prop(node, name, value) {
-    if (node.props === props$1) node.props = {};
-    node.props[name] = value;
-  };
-  var addJSON = function addJSON(value, comp, json) {
-    if (value !== comp) json.push(value);
-  };
-  var Node = /*#__PURE__*/function () {
-    function Node(type) {
-      _classCallCheck(this, Node);
-      this.type = type;
-      this.parent = null;
-    }
-    return _createClass(Node, [{
-      key: "toJSON",
-      value: function toJSON() {
-        //@ts-ignore
-        return [this.type, this.data];
-      }
-    }]);
-  }();
-  var Comment = /*#__PURE__*/function (_Node) {
-    function Comment(data) {
-      var _this;
-      _classCallCheck(this, Comment);
-      _this = _callSuper$2(this, Comment, [COMMENT$1]);
-      _this.data = data;
-      return _this;
-    }
-    _inherits(Comment, _Node);
-    return _createClass(Comment, [{
-      key: "toString",
-      value: function toString() {
-        return "<!--".concat(this.data, "-->");
-      }
-    }]);
-  }(Node);
-  var DocumentType = /*#__PURE__*/function (_Node2) {
-    function DocumentType(data) {
-      var _this2;
-      _classCallCheck(this, DocumentType);
-      _this2 = _callSuper$2(this, DocumentType, [DOCUMENT_TYPE]);
-      _this2.data = data;
-      return _this2;
-    }
-    _inherits(DocumentType, _Node2);
-    return _createClass(DocumentType, [{
-      key: "toString",
-      value: function toString() {
-        return "<!".concat(this.data, ">");
-      }
-    }]);
-  }(Node);
-  var Text = /*#__PURE__*/function (_Node3) {
-    function Text(data) {
-      var _this3;
-      _classCallCheck(this, Text);
-      _this3 = _callSuper$2(this, Text, [TEXT$1]);
-      _this3.data = data;
-      return _this3;
-    }
-    _inherits(Text, _Node3);
-    return _createClass(Text, [{
-      key: "toString",
-      value: function toString() {
-        return this.data;
-      }
-    }]);
-  }(Node);
-  var Component = /*#__PURE__*/function (_Node4) {
-    function Component() {
-      var _this4;
-      _classCallCheck(this, Component);
-      _this4 = _callSuper$2(this, Component, [COMPONENT$1]);
-      _this4.name = 'template';
-      _this4.props = props$1;
-      _this4.children = children;
-      return _this4;
-    }
-    _inherits(Component, _Node4);
-    return _createClass(Component, [{
-      key: "toJSON",
-      value: function toJSON() {
-        var json = [COMPONENT$1];
-        addJSON(this.props, props$1, json);
-        addJSON(this.children, children, json);
-        return json;
-      }
-    }, {
-      key: "toString",
-      value: function toString() {
-        var attrs = '';
-        for (var key in this.props) {
-          var value = this.props[key];
-          if (value != null) {
-            /* c8 ignore start */
-            if (typeof value === 'boolean') {
-              if (value) attrs += " ".concat(key);
-            } else attrs += " ".concat(key, "=\"").concat(value, "\"");
-            /* c8 ignore stop */
-          }
-        }
-        return "<template".concat(attrs, ">").concat(this.children.join(''), "</template>");
-      }
-    }]);
-  }(Node);
-  var Element = /*#__PURE__*/function (_Node5) {
-    function Element(name) {
-      var _this5;
-      var xml = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
-      _classCallCheck(this, Element);
-      _this5 = _callSuper$2(this, Element, [ELEMENT]);
-      _this5.name = name;
-      _this5.xml = xml;
-      _this5.props = props$1;
-      _this5.children = children;
-      return _this5;
-    }
-    _inherits(Element, _Node5);
-    return _createClass(Element, [{
-      key: "toJSON",
-      value: function toJSON() {
-        var json = [ELEMENT, this.name, +this.xml];
-        addJSON(this.props, props$1, json);
-        addJSON(this.children, children, json);
-        return json;
-      }
-    }, {
-      key: "toString",
-      value: function toString() {
-        var xml = this.xml,
-          name = this.name,
-          props = this.props,
-          children = this.children;
-        var length = children.length;
-        var html = "<".concat(name);
-        for (var key in props) {
-          var value = props[key];
-          if (value != null) {
-            if (typeof value === 'boolean') {
-              if (value) html += xml ? " ".concat(key, "=\"\"") : " ".concat(key);
-            } else html += " ".concat(key, "=\"").concat(value, "\"");
-          }
-        }
-        if (length) {
-          html += '>';
-          for (var text = !xml && TEXT_ELEMENTS.has(name), i = 0; i < length; i++) html += text ? children[i].data : children[i];
-          html += "</".concat(name, ">");
-        } else if (xml) html += ' />';else html += VOID_ELEMENTS.has(name) ? '>' : "></".concat(name, ">");
-        return html;
-      }
-    }]);
-  }(Node);
-  var Fragment = /*#__PURE__*/function (_Node6) {
-    function Fragment() {
-      var _this6;
-      _classCallCheck(this, Fragment);
-      _this6 = _callSuper$2(this, Fragment, [FRAGMENT]);
-      _this6.name = '#fragment';
-      _this6.children = children;
-      return _this6;
-    }
-    _inherits(Fragment, _Node6);
-    return _createClass(Fragment, [{
-      key: "toJSON",
-      value: function toJSON() {
-        var json = [FRAGMENT];
-        addJSON(this.children, children, json);
-        return json;
-      }
-    }, {
-      key: "toString",
-      value: function toString() {
-        return this.children.join('');
-      }
-    }]);
-  }(Node);
-
-  function _arrayWithHoles(r) {
-    if (Array.isArray(r)) return r;
-  }
-
-  function _iterableToArrayLimit(r, l) {
-    var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"];
-    if (null != t) {
-      var e,
-        n,
-        i,
-        u,
-        a = [],
-        f = true,
-        o = false;
-      try {
-        if (i = (t = t.call(r)).next, 0 === l) {
-          if (Object(t) !== t) return;
-          f = !1;
-        } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0);
-      } catch (r) {
-        o = true, n = r;
-      } finally {
-        try {
-          if (!f && null != t["return"] && (u = t["return"](), Object(u) !== u)) return;
-        } finally {
-          if (o) throw n;
-        }
-      }
-      return a;
-    }
-  }
-
-  function _arrayLikeToArray$3(r, a) {
-    (null == a || a > r.length) && (a = r.length);
-    for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e];
-    return n;
-  }
-
-  function _unsupportedIterableToArray$3(r, a) {
-    if (r) {
-      if ("string" == typeof r) return _arrayLikeToArray$3(r, a);
-      var t = {}.toString.call(r).slice(8, -1);
-      return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray$3(r, a) : void 0;
-    }
-  }
-
-  function _nonIterableRest() {
-    throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
-  }
-
-  function _slicedToArray(r, e) {
-    return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray$3(r, e) || _nonIterableRest();
-  }
-
-  /* c8 ignore start */
-  var asTemplate = function asTemplate(template) {
-    var _ref, _ref$join;
-    return ((_ref = (template === null || template === void 0 ? void 0 : template.raw) || template) === null || _ref === void 0 || (_ref$join = _ref.join) === null || _ref$join === void 0 ? void 0 : _ref$join.call(_ref, ',')) || 'unknown';
-  };
-  /* c8 ignore stop */
-
-  var errors = {
-    text: function text(template, tag, value) {
-      return new SyntaxError("Mixed text and interpolations found in text only <".concat(tag, "> element ").concat(JSON.stringify(String(value)), " in template ").concat(asTemplate(template)));
-    },
-    unclosed: function unclosed(template, tag) {
-      return new SyntaxError("The text only <".concat(tag, "> element requires explicit </").concat(tag, "> closing tag in template ").concat(asTemplate(template)));
-    },
-    unclosed_element: function unclosed_element(template, tag) {
-      return new SyntaxError("Unclosed element <".concat(tag, "> found in template ").concat(asTemplate(template)));
-    },
-    invalid_content: function invalid_content(template) {
-      return new SyntaxError("Invalid content \"<!\" found in template: ".concat(asTemplate(template)));
-    },
-    invalid_closing: function invalid_closing(template) {
-      return new SyntaxError("Invalid closing tag: </... found in template: ".concat(asTemplate(template)));
-    },
-    invalid_nul: function invalid_nul(template) {
-      return new SyntaxError("Invalid content: NUL char \\x00 found in template: ".concat(asTemplate(template)));
-    },
-    invalid_comment: function invalid_comment(template) {
-      return new SyntaxError("Invalid comment: no closing --> found in template ".concat(asTemplate(template)));
-    },
-    invalid_layout: function invalid_layout(template) {
-      return new SyntaxError("Too many closing tags found in template ".concat(asTemplate(template)));
-    },
-    invalid_doctype: function invalid_doctype(template, value) {
-      return new SyntaxError("Invalid doctype: ".concat(value, " found in template ").concat(asTemplate(template)));
-    },
-    // DOM ONLY
-    /* c8 ignore start */
-    invalid_template: function invalid_template(template) {
-      return new SyntaxError("Invalid template - the amount of values does not match the amount of updates: ".concat(asTemplate(template)));
-    },
-    invalid_path: function invalid_path(template, path) {
-      return new SyntaxError("Invalid path - unreachable node at the path [".concat(path.join(', '), "] found in template ").concat(asTemplate(template)));
-    },
-    invalid_attribute: function invalid_attribute(template, kind) {
-      return new SyntaxError("Invalid ".concat(kind, " attribute in template definition\n").concat(asTemplate(template)));
-    },
-    invalid_interpolation: function invalid_interpolation(template, value) {
-      return new SyntaxError("Invalid interpolation - expected hole or array: ".concat(String(value), " found in template ").concat(asTemplate(template)));
-    },
-    invalid_hole: function invalid_hole(value) {
-      return new SyntaxError("Invalid interpolation - expected hole: ".concat(String(value)));
-    },
-    invalid_key: function invalid_key(value) {
-      return new SyntaxError("Invalid key attribute or position in template: ".concat(String(value)));
-    },
-    invalid_array: function invalid_array(value) {
-      return new SyntaxError("Invalid array - expected html/svg but found something else: ".concat(String(value)));
-    },
-    invalid_component: function invalid_component(value) {
-      return new SyntaxError("Invalid component: ".concat(String(value)));
-    }
-  };
-
-  function _createForOfIteratorHelper$2(r, e) { var t = "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (!t) { if (Array.isArray(r) || (t = _unsupportedIterableToArray$2(r)) || e) { t && (r = t); var _n = 0, F = function F() {}; return { s: F, n: function n() { return _n >= r.length ? { done: true } : { done: false, value: r[_n++] }; }, e: function e(r) { throw r; }, f: F }; } throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); } var o, a = true, u = false; return { s: function s() { t = t.call(r); }, n: function n() { var r = t.next(); return a = r.done, r; }, e: function e(r) { u = true, o = r; }, f: function f() { try { a || null == t["return"] || t["return"](); } finally { if (u) throw o; } } }; }
-  function _unsupportedIterableToArray$2(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray$2(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray$2(r, a) : void 0; } }
-  function _arrayLikeToArray$2(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
-  var NUL = '\x00';
-  var DOUBLE_QUOTED_NUL = "\"".concat(NUL, "\"");
-  var SINGLE_QUOTED_NUL = "'".concat(NUL, "'");
-  var NEXT = /\x00|<[^><\s]+/g;
-  var ATTRS = /([^\s/>=]+)(?:=(\x00|(?:(['"])[\s\S]*?\3)))?/g;
-
-  // // YAGNI: NUL char in the wild is a shenanigan
-  // // usage: template.map(safe).join(NUL).trim()
-  // const NUL_RE = /\x00/g;
-  // const safe = s => s.replace(NUL_RE, '&#0;');
-
-  /** @typedef {import('../dom/ish.js').Node} Node */
-  /** @typedef {import('../dom/ish.js').Element} Element */
-  /** @typedef {import('../dom/ish.js').Component} Component */
-  /** @typedef {(node: import('../dom/ish.js').Node, type: typeof ATTRIBUTE | typeof TEXT | typeof COMMENT | typeof COMPONENT, path: number[], name: string, hint: unknown) => unknown} update */
-  /** @typedef {Element | Component} Container */
-
-  /** @type {update} */
-  var defaultUpdate = function defaultUpdate(_, type, path, name, hint) {
-    return [type, path, name];
-  };
-
-  /**
-   * @param {Node} node
-   * @returns {number[]}
-   */
-  var path = function path(node) {
-    var insideout = [];
-    while (node.parent) {
-      switch (node.type) {
-        /* c8 ignore start */
-        case COMPONENT$1:
-        // fallthrough
-        /* c8 ignore stop */
-        case ELEMENT:
-          {
-            if (/** @type {Container} */node.name === 'template') insideout.push(-1);
-            break;
-          }
-      }
-      insideout.push(node.parent.children.indexOf(node));
-      node = node.parent;
-    }
-    return insideout;
-  };
-
-  /**
-   * @param {Node} node
-   * @param {Set<Node>} ignore
-   * @returns {Node}
-   */
-  var parent = function parent(node, ignore) {
-    do {
-      node = node.parent;
-    } while (ignore.has(node));
-    return node;
-  };
-  var parser = (function (_ref) {
-    var _ref$Comment = _ref.Comment,
-      Comment$1 = _ref$Comment === void 0 ? Comment : _ref$Comment,
-      _ref$DocumentType = _ref.DocumentType,
-      DocumentType$1 = _ref$DocumentType === void 0 ? DocumentType : _ref$DocumentType,
-      _ref$Text = _ref.Text,
-      Text$1 = _ref$Text === void 0 ? Text : _ref$Text,
-      _ref$Fragment = _ref.Fragment,
-      Fragment$1 = _ref$Fragment === void 0 ? Fragment : _ref$Fragment,
-      _ref$Element = _ref.Element,
-      Element$1 = _ref$Element === void 0 ? Element : _ref$Element,
-      _ref$Component = _ref.Component,
-      Component$1 = _ref$Component === void 0 ? Component : _ref$Component,
-      _ref$update = _ref.update,
-      update = _ref$update === void 0 ? defaultUpdate : _ref$update;
-    return (
-      /**
-       * Parse a template string into a crawable JS literal tree and provide a list of updates.
-       * @param {TemplateStringsArray|string[]} template
-       * @param {unknown[]} holes
-       * @param {boolean} xml
-       * @returns {[Node, unknown[]]}
-       */
-      function (template, holes, xml) {
-        if (template.some(function (chunk) {
-          return chunk.includes(NUL);
-        })) throw errors.invalid_nul(template);
-        var content = template.join(NUL).trim();
-        if (content.replace(/(\S+)=(['"])([\S\s]+?)\2/g, function () {
-          return /^[^\x00]+\x00|\x00[^\x00]+$/.test(arguments.length <= 3 ? undefined : arguments[3]) ? xml = arguments.length <= 1 ? undefined : arguments[1] : arguments.length <= 0 ? undefined : arguments[0];
-        }) !== content) throw errors.invalid_attribute(template, xml);
-        var ignore = new Set();
-        var values = [];
-        var node = new Fragment$1(),
-          pos = 0,
-          skip = 0,
-          hole = 0,
-          resolvedPath = children;
-        var _iterator = _createForOfIteratorHelper$2(content.matchAll(NEXT)),
-          _step;
-        try {
-          for (_iterator.s(); !(_step = _iterator.n()).done;) {
-            var match = _step.value;
-            // already handled via attributes or text content nodes
-            if (0 < skip) {
-              skip--;
-              continue;
-            }
-            var chunk = match[0];
-            var index = match.index;
-
-            // prepend previous content, if any
-            if (pos < index) append(node, new Text$1(content.slice(pos, index)));
-
-            // holes
-            if (chunk === NUL) {
-              if (node.name === 'table') {
-                node = append(node, new Element$1('tbody', xml));
-                ignore.add(node);
-              }
-              var comment = append(node, new Comment$1('◦'));
-              values.push(update(comment, COMMENT$1, path(comment), '', holes[hole++]));
-              pos = index + 1;
-            }
-            // comments or doctype
-            else if (chunk.startsWith('<!')) {
-              var i = content.indexOf('>', index + 2);
-              if (DEBUG && i < 0) throw errors.invalid_content(template);
-              if (content.slice(i - 2, i + 1) === '-->') {
-                if (DEBUG && i - index < 6) throw errors.invalid_comment(template);
-                var data = content.slice(index + 4, i - 2);
-                if (data[0] === '!') append(node, new Comment$1(data.slice(1).replace(/!$/, '')));
-              } else {
-                if (DEBUG && !content.slice(index + 2, i).toLowerCase().startsWith('doctype')) throw errors.invalid_doctype(template, content.slice(index + 2, i));
-                append(node, new DocumentType$1(content.slice(index + 2, i)));
-              }
-              pos = i + 1;
-            }
-            // closing tag </> or </name>
-            else if (chunk.startsWith('</')) {
-              var _i = content.indexOf('>', index + 2);
-              if (DEBUG && _i < 0) throw errors.invalid_closing(template);
-              if (xml && node.name === 'svg') xml = false;
-              node = /** @type {Container} */parent(node, ignore);
-              if (DEBUG && !node) throw errors.invalid_layout(template);
-              pos = _i + 1;
-            }
-            // opening tag <name> or <name />
-            else {
-              var _i2 = index + chunk.length;
-              var j = content.indexOf('>', _i2);
-              var name = chunk.slice(1);
-              if (DEBUG && j < 0) throw errors.unclosed_element(template, name);
-              var tag = name;
-              // <${Component} ... />
-              if (name === NUL) {
-                tag = 'template';
-                node = append(node, new Component$1());
-                resolvedPath = path(node).slice(1);
-                //@ts-ignore
-                values.push(update(node, COMPONENT$1, resolvedPath, '', holes[hole++]));
-              }
-              // any other element
-              else {
-                if (!xml) {
-                  tag = tag.toLowerCase();
-                  // patch automatic elements insertion with <table>
-                  // or path will fail once live on the DOM
-                  if (node.name === 'table' && (tag === 'tr' || tag === 'td')) {
-                    node = append(node, new Element$1('tbody', xml));
-                    ignore.add(node);
-                  }
-                  if (node.name === 'tbody' && tag === 'td') {
-                    node = append(node, new Element$1('tr', xml));
-                    ignore.add(node);
-                  }
-                }
-                node = append(node, new Element$1(tag, xml ? tag !== 'svg' : false));
-                resolvedPath = children;
-              }
-
-              // attributes
-              if (_i2 < j) {
-                var dot = false;
-                var _iterator2 = _createForOfIteratorHelper$2(content.slice(_i2, j).matchAll(ATTRS)),
-                  _step2;
-                try {
-                  for (_iterator2.s(); !(_step2 = _iterator2.n()).done;) {
-                    var _step2$value = _slicedToArray(_step2.value, 3),
-                      _ = _step2$value[0],
-                      _name = _step2$value[1],
-                      value = _step2$value[2];
-                    if (value === NUL || value === DOUBLE_QUOTED_NUL || value === SINGLE_QUOTED_NUL || (dot = _name.endsWith(NUL))) {
-                      var p = resolvedPath === children ? resolvedPath = path(node) : resolvedPath;
-                      //@ts-ignore
-                      values.push(update(node, ATTRIBUTE$1, p, dot ? _name.slice(0, -1) : _name, holes[hole++]));
-                      dot = false;
-                      skip++;
-                    } else prop(node, _name, value ? value.slice(1, -1) : true);
-                  }
-                } catch (err) {
-                  _iterator2.e(err);
-                } finally {
-                  _iterator2.f();
-                }
-                resolvedPath = children;
-              }
-              pos = j + 1;
-
-              // to handle self-closing tags
-              var closed = 0 < j && content[j - 1] === '/';
-              if (xml) {
-                if (closed) {
-                  node = node.parent;
-                  /* c8 ignore start unable to reproduce, still worth a guard */
-                  if (DEBUG && !node) throw errors.invalid_layout(template);
-                  /* c8 ignore stop */
-                }
-              } else if (closed || VOID_ELEMENTS.has(tag)) {
-                // void elements are never td or tr
-                node = closed ? parent(node, ignore) : node.parent;
-
-                /* c8 ignore start unable to reproduce, still worth a guard */
-                if (DEBUG && !node) throw errors.invalid_layout();
-                /* c8 ignore stop */
-              }
-              // <svg> switches to xml mode
-              else if (tag === 'svg') xml = true;
-              // text content / data elements content handling
-              else if (TEXT_ELEMENTS.has(tag)) {
-                var _index = content.indexOf("</".concat(name, ">"), pos);
-                if (DEBUG && _index < 0) throw errors.unclosed(template, tag);
-                var _value = content.slice(pos, _index);
-                // interpolation as text
-                if (_value.trim() === NUL) {
-                  skip++;
-                  values.push(update(node, TEXT$1, path(node), '', holes[hole++]));
-                } else if (DEBUG && _value.includes(NUL)) throw errors.text(template, tag, _value);else append(node, new Text$1(_value));
-                // text elements are never td or tr
-                node = node.parent;
-                /* c8 ignore start unable to reproduce, still worth a guard */
-                if (DEBUG && !node) throw errors.invalid_layout(template);
-                /* c8 ignore stop */
-                pos = _index + name.length + 3;
-                // ignore the closing tag regardless of the content
-                skip++;
-                continue;
-              }
-            }
-          }
-        } catch (err) {
-          _iterator.e(err);
-        } finally {
-          _iterator.f();
-        }
-        if (pos < content.length) append(node, new Text$1(content.slice(pos)));
-
-        /* c8 ignore start */
-        if (hole < holes.length) throw errors.invalid_template(template);
-        /* c8 ignore stop */
-
-        return [node, values];
-      }
-    );
-  });
-
-  function _arrayWithoutHoles(r) {
-    if (Array.isArray(r)) return _arrayLikeToArray$3(r);
-  }
-
-  function _iterableToArray(r) {
-    if ("undefined" != typeof Symbol && null != r[Symbol.iterator] || null != r["@@iterator"]) return Array.from(r);
-  }
-
-  function _nonIterableSpread() {
-    throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
-  }
-
-  function _toConsumableArray(r) {
-    return _arrayWithoutHoles(r) || _iterableToArray(r) || _unsupportedIterableToArray$3(r) || _nonIterableSpread();
-  }
-
-  var tree = function (node, i) {
-    var _node$childNodes;
-    return i < 0 ? node === null || node === void 0 ? void 0 : node.content : node === null || node === void 0 || (_node$childNodes = node.childNodes) === null || _node$childNodes === void 0 ? void 0 : _node$childNodes[i];
-  } ;
-  var resolve = (function (root, path) {
-    return path.reduceRight(tree, root);
-  });
-
-  var checkType = false,
-    range;
-
-  /**
-   * @param {DocumentFragment} fragment
-   * @returns {Node | Element}
-   */
-  var drop = function drop(_ref) {
-    var firstChild = _ref.firstChild,
-      lastChild = _ref.lastChild;
-    var r = range || (range = document.createRange());
-    r.setStartAfter(firstChild);
-    r.setEndAfter(lastChild);
-    r.deleteContents();
-    //@ts-ignore
-    return firstChild;
-  };
-
-  /**
-   * @param {Node} node
-   * @param {1 | 0 | -0 | -1} operation
-   * @returns {Node}
-   */
-  var diffFragment = function diffFragment(node, operation) {
-    return checkType && node.nodeType === 11 ? 1 / operation < 0 ?
-    //@ts-ignore
-    operation ? drop(node) : node.lastChild :
-    //@ts-ignore
-    operation ? node.valueOf() : node.firstChild : node;
-  };
-  var nodes = Symbol('nodes');
-  var parentNode = {
-    get: function get() {
-      return this.firstChild.parentNode;
-    }
-  };
-  //@ts-ignore
-  var replaceWith = {
-    value: function value(node) {
-      drop(this).replaceWith(node);
-    }
-  };
-  //@ts-ignore
-  var remove = {
-    value: function value() {
-      drop(this).remove();
-    }
-  };
-  var valueOf = {
-    value: function value() {
-      var parentNode = this.parentNode;
-      if (parentNode === this) {
-        if (this[nodes] === children) this[nodes] = _toConsumableArray(this.childNodes);
-      } else {
-        // TODO: verify fragments in lists don't call this twice
-        if (parentNode) {
-          var firstChild = this.firstChild,
-            lastChild = this.lastChild;
-          this[nodes] = [firstChild];
-          while (firstChild !== lastChild) this[nodes].push(firstChild = firstChild.nextSibling);
-        }
-        this.replaceChildren.apply(this, _toConsumableArray(this[nodes]));
-      }
-      return this;
-    }
-  };
-
-  /**
-   * @param {DocumentFragment} fragment
-   * @returns {DocumentFragment}
-   */
-  function PersistentFragment(fragment) {
-    var firstChild = createComment('<>'),
-      lastChild = createComment('</>');
-    //@ts-ignore
-    fragment.replaceChildren.apply(fragment, [firstChild].concat(_toConsumableArray(fragment.childNodes), [lastChild]));
-    checkType = true;
-    return defineProperties$2(fragment, _defineProperty(_defineProperty(_defineProperty(_defineProperty(_defineProperty(_defineProperty(_defineProperty({}, nodes, {
-      writable: true,
-      value: children
-    }), "firstChild", {
-      value: firstChild
-    }), "lastChild", {
-      value: lastChild
-    }), "parentNode", parentNode), "valueOf", valueOf), "replaceWith", replaceWith), "remove", remove));
-  }
-  PersistentFragment.prototype = DocumentFragment.prototype;
-
-  // @ts-check
-
-  /**
-   * @param {Document} document
-   * @returns
-   */
-  var creator = (function () {
-    var document = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : (/** @type {Document} */globalThis.document);
-    var tpl = document.createElement('template'),
-      range;
-    /**
-     * @param {string} content
-     * @param {boolean} [xml=false]
-     * @returns {DocumentFragment}
-     */
-    return function (content) {
-      var xml = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
-      if (xml) {
-        if (!range) {
-          range = document.createRange();
-          range.selectNodeContents(document.createElementNS('http://www.w3.org/2000/svg', 'svg'));
-        }
-        return range.createContextualFragment(content);
-      }
-      tpl.innerHTML = content;
-      var fragment = tpl.content;
-      tpl = /** @type {HTMLTemplateElement} */tpl.cloneNode(false);
-      return fragment;
-    };
-  });
-
-  // @see https://github.com/WebReflection/udomdiff
-
-  /**
-   * ISC License
-   *
-   * Copyright (c) 2020, Andrea Giammarchi, @WebReflection
-   *
-   * Permission to use, copy, modify, and/or distribute this software for any
-   * purpose with or without fee is hereby granted, provided that the above
-   * copyright notice and this permission notice appear in all copies.
-   *
-   * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
-   * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
-   * AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
-   * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
-   * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
-   * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
-   * PERFORMANCE OF THIS SOFTWARE.
-   */
-
-  /**
-   * @param {Node[]} a The list of current/live children
-   * @param {Node[]} b The list of future children
-   * @param {(entry: Node, action: number) => Node} get
-   * The callback invoked per each entry related DOM operation.
-   * @param {Node} [before] The optional node used as anchor to insert before.
-   * @returns {Node[]} The same list of future children.
-   */
-  var diff = (function (a, b, get, before) {
-    var parentNode = before.parentNode;
-    var bLength = b.length;
-    var aEnd = a.length;
-    var bEnd = bLength;
-    var aStart = 0;
-    var bStart = 0;
-    var map = null;
-    while (aStart < aEnd || bStart < bEnd) {
-      // append head, tail, or nodes in between: fast path
-      if (aEnd === aStart) {
-        // we could be in a situation where the rest of nodes that
-        // need to be added are not at the end, and in such case
-        // the node to `insertBefore`, if the index is more than 0
-        // must be retrieved, otherwise it's gonna be the first item.
-        var node = bEnd < bLength ? bStart ? get(b[bStart - 1], -0).nextSibling : get(b[bEnd], 0) : before;
-        while (bStart < bEnd) parentNode.insertBefore(get(b[bStart++], 1), node);
-      }
-      // remove head or tail: fast path
-      else if (bEnd === bStart) {
-        while (aStart < aEnd) {
-          // remove the node only if it's unknown or not live
-          if (!map || !map.has(a[aStart]))
-            //@ts-ignore
-            get(a[aStart], -1).remove();
-          aStart++;
-        }
-      }
-      // same node: fast path
-      else if (a[aStart] === b[bStart]) {
-        aStart++;
-        bStart++;
-      }
-      // same tail: fast path
-      else if (a[aEnd - 1] === b[bEnd - 1]) {
-        aEnd--;
-        bEnd--;
-      }
-      // The once here single last swap "fast path" has been removed in v1.1.0
-      // https://github.com/WebReflection/udomdiff/blob/single-final-swap/esm/index.js#L69-L85
-      // reverse swap: also fast path
-      else if (a[aStart] === b[bEnd - 1] && b[bStart] === a[aEnd - 1]) {
-        // this is a "shrink" operation that could happen in these cases:
-        // [1, 2, 3, 4, 5]
-        // [1, 4, 3, 2, 5]
-        // or asymmetric too
-        // [1, 2, 3, 4, 5]
-        // [1, 2, 3, 5, 6, 4]
-        var _node = get(a[--aEnd], -0).nextSibling;
-        parentNode.insertBefore(get(b[bStart++], 1), get(a[aStart++], -0).nextSibling);
-        parentNode.insertBefore(get(b[--bEnd], 1), _node);
-        // mark the future index as identical (yeah, it's dirty, but cheap 👍)
-        // The main reason to do this, is that when a[aEnd] will be reached,
-        // the loop will likely be on the fast path, as identical to b[bEnd].
-        // In the best case scenario, the next loop will skip the tail,
-        // but in the worst one, this node will be considered as already
-        // processed, bailing out pretty quickly from the map index check
-        a[aEnd] = b[bEnd];
-      }
-      // map based fallback, "slow" path
-      else {
-        var _map$get;
-        // the map requires an O(bEnd - bStart) operation once
-        // to store all future nodes indexes for later purposes.
-        // In the worst case scenario, this is a full O(N) cost,
-        // and such scenario happens at least when all nodes are different,
-        // but also if both first and last items of the lists are different
-        if (!map) {
-          map = new Map();
-          var i = bStart;
-          while (i < bEnd) map.set(b[i], i++);
-        }
-        var index = (_map$get = map.get(a[aStart])) !== null && _map$get !== void 0 ? _map$get : -1;
-
-        // this node has no meaning in the future list, so it's more than safe
-        // to remove it, and check the next live node out instead, meaning
-        // that only the live list index should be forwarded
-        //@ts-ignore
-        if (index < 0) get(a[aStart++], -1).remove();
-        // it's a future node, hence it needs some handling
-        else {
-          // if it's not already processed, look on demand for the next LCS
-          if (bStart < index && index < bEnd) {
-            var _i = aStart;
-            // counts the amount of nodes that are the same in the future
-            var sequence = 1;
-            while (++_i < aEnd && _i < bEnd && map.get(a[_i]) === index + sequence) sequence++;
-            // effort decision here: if the sequence is longer than replaces
-            // needed to reach such sequence, which would brings again this loop
-            // to the fast path, prepend the difference before a sequence,
-            // and move only the future list index forward, so that aStart
-            // and bStart will be aligned again, hence on the fast path.
-            // An example considering aStart and bStart are both 0:
-            // a: [1, 2, 3, 4]
-            // b: [7, 1, 2, 3, 6]
-            // this would place 7 before 1 and, from that time on, 1, 2, and 3
-            // will be processed at zero cost
-            if (sequence > index - bStart) {
-              var _node2 = get(a[aStart], 0);
-              while (bStart < index) parentNode.insertBefore(get(b[bStart++], 1), _node2);
-            }
-            // if the effort wasn't good enough, fallback to a replace,
-            // moving both source and target indexes forward, hoping that some
-            // similar node will be found later on, to go back to the fast path
-            else {
-              // TODO: benchmark replaceWith instead
-              parentNode.replaceChild(get(b[bStart++], 1), get(a[aStart++], -1));
-            }
-          }
-          // otherwise move the source forward, 'cause there's nothing to do
-          else aStart++;
-        }
-      }
-    }
-    return b;
-  });
-
-  function _createForOfIteratorHelper$1(r, e) { var t = "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (!t) { if (Array.isArray(r) || (t = _unsupportedIterableToArray$1(r)) || e) { t && (r = t); var _n = 0, F = function F() {}; return { s: F, n: function n() { return _n >= r.length ? { done: true } : { done: false, value: r[_n++] }; }, e: function e(r) { throw r; }, f: F }; } throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); } var o, a = true, u = false; return { s: function s() { t = t.call(r); }, n: function n() { var r = t.next(); return a = r.done, r; }, e: function e(r) { u = true, o = r; }, f: function f() { try { a || null == t["return"] || t["return"](); } finally { if (u) throw o; } } }; }
-  function _unsupportedIterableToArray$1(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray$1(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray$1(r, a) : void 0; } }
-  function _arrayLikeToArray$1(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
-  var ARRAY = 1 << 0;
-  var ARIA = 1 << 1;
-  var ATTRIBUTE = 1 << 2;
-  var COMMENT = 1 << 3;
-  var COMPONENT = 1 << 4;
-  var DATA = 1 << 5;
-  var DIRECT = 1 << 6;
-  var DOTS = 1 << 7;
-  var EVENT = 1 << 8;
-  var KEY = 1 << 9;
-  var PROP = 1 << 10;
-  var TEXT = 1 << 11;
-  var TOGGLE = 1 << 12;
-  var UNSAFE = 1 << 13;
-  var REF = 1 << 14;
-  var SIGNAL = 1 << 15;
-
-  // COMPONENT flags
-  var COMPONENT_DIRECT = COMPONENT | DIRECT;
-  var COMPONENT_DOTS = COMPONENT | DOTS;
-  var COMPONENT_PROP = COMPONENT | PROP;
-  var EVENT_ARRAY = EVENT | ARRAY;
-  var COMMENT_ARRAY = COMMENT | ARRAY;
-  var fragment = creator(document);
-  var ref = Symbol('ref');
-  var aria = function aria(node, values) {
-    var _iterator = _createForOfIteratorHelper$1(entries(values)),
-      _step;
-    try {
-      for (_iterator.s(); !(_step = _iterator.n()).done;) {
-        var _step$value = _slicedToArray(_step.value, 2),
-          key = _step$value[0],
-          value = _step$value[1];
-        var name = key === 'role' ? key : "aria-".concat(key.toLowerCase());
-        if (value == null) node.removeAttribute(name);else node.setAttribute(name, value);
-      }
-    } catch (err) {
-      _iterator.e(err);
-    } finally {
-      _iterator.f();
-    }
-  };
-  var attribute = function attribute(name) {
-    return function (node, value) {
-      if (value == null) node.removeAttribute(name);else node.setAttribute(name, value);
-    };
-  };
-  var comment_array = function comment_array(node, value) {
-    node[nodes] = diff(node[nodes] || children, value, diffFragment, node);
-  };
-  var text = new WeakMap();
-  var getText = function getText(ref, value) {
-    var node = text.get(ref);
-    if (node) node.data = value;else text.set(ref, node = document.createTextNode(value));
-    return node;
-  };
-  var comment_hole = function comment_hole(node, value) {
-    var _node$nodes;
-    var current = _typeof(value) === 'object' ? value !== null && value !== void 0 ? value : node : getText(node, value);
-    var prev = (_node$nodes = node[nodes]) !== null && _node$nodes !== void 0 ? _node$nodes : node;
-    if (current !== prev) prev.replaceWith(diffFragment(node[nodes] = current, 1));
-  };
-  var comment_unsafe = function comment_unsafe(xml) {
-    return function (node, value) {
-      var _node$ref;
-      var prev = (_node$ref = node[ref]) !== null && _node$ref !== void 0 ? _node$ref : node[ref] = {};
-      if (prev.v !== value) {
-        prev.f = PersistentFragment(fragment(value, xml));
-        prev.v = value;
-      }
-      comment_hole(node, prev.f);
-    };
-  };
-  var comment_signal = function comment_signal(node, value) {
-    comment_hole(node, value instanceof Signal ? value.value : value);
-  };
-  var data = function data(_ref, values) {
-    var dataset = _ref.dataset;
-    var _iterator2 = _createForOfIteratorHelper$1(entries(values)),
-      _step2;
-    try {
-      for (_iterator2.s(); !(_step2 = _iterator2.n()).done;) {
-        var _step2$value = _slicedToArray(_step2.value, 2),
-          key = _step2$value[0],
-          value = _step2$value[1];
-        if (value == null) delete dataset[key];else dataset[key] = value;
-      }
-    } catch (err) {
-      _iterator2.e(err);
-    } finally {
-      _iterator2.f();
-    }
-  };
-
-  /** @type {Map<string|Symbol, Function>} */
-  var directRefs = new Map();
-
-  /**
-   * @param {string|Symbol} name
-   * @returns {Function}
-   */
-  var directFor = function directFor(name) {
-    var fn = directRefs.get(name);
-    if (!fn) directRefs.set(name, fn = direct$1(name));
-    return fn;
-  };
-  var direct$1 = function direct(name) {
-    return function (node, value) {
-      node[name] = value;
-    };
-  };
-  var dots = function dots(node, values) {
-    var _iterator3 = _createForOfIteratorHelper$1(entries(values)),
-      _step3;
-    try {
-      for (_iterator3.s(); !(_step3 = _iterator3.n()).done;) {
-        var _step3$value = _slicedToArray(_step3.value, 2),
-          name = _step3$value[0],
-          value = _step3$value[1];
-        attribute(name)(node, value);
-      }
-    } catch (err) {
-      _iterator3.e(err);
-    } finally {
-      _iterator3.f();
-    }
-  };
-  var event = function event(type, at, array) {
-    return array ? function (node, value) {
-      var prev = node[at];
-      if (prev !== null && prev !== void 0 && prev.length) node.removeEventListener.apply(node, [type].concat(_toConsumableArray(prev)));
-      if (value) node.addEventListener.apply(node, [type].concat(_toConsumableArray(value)));
-      node[at] = value;
-    } : function (node, value) {
-      var prev = node[at];
-      if (prev) node.removeEventListener(type, prev);
-      if (value) node.addEventListener(type, value);
-      node[at] = value;
-    };
-  };
-  var toggle = function toggle(name) {
-    return function (node, value) {
-      node.toggleAttribute(name, !!value);
-    };
-  };
-  var k = false;
-  var isKeyed = function isKeyed() {
-    var wasKeyed = k;
-    k = false;
-    return wasKeyed;
-  };
-  var update = function update(node, type, path, name, hint) {
-    switch (type) {
-      case COMPONENT$1:
-        return [path, hint, COMPONENT];
-      case COMMENT$1:
-        {
-          if (isArray(hint)) return [path, comment_array, COMMENT_ARRAY];
-          if (hint instanceof Unsafe) return [path, comment_unsafe(node.xml), UNSAFE];
-          if (hint instanceof Signal) return [path, comment_signal, COMMENT | SIGNAL];
-          return [path, comment_hole, COMMENT];
-        }
-      case TEXT$1:
-        return [path, directFor('textContent'), TEXT];
-      case ATTRIBUTE$1:
-        {
-          var isComponent = node.type === COMPONENT$1;
-          switch (name.at(0)) {
-            case '@':
-              {
-                if (isComponent) throw errors.invalid_attribute([], name);
-                var array = isArray(hint);
-                return [path, event(name.slice(1), Symbol(name), array), array ? EVENT_ARRAY : EVENT];
-              }
-            case '?':
-              if (isComponent) throw errors.invalid_attribute([], name);
-              return [path, toggle(name.slice(1)), TOGGLE];
-            case '.':
-              {
-                return name === '...' ? [path, isComponent ? assign : dots, isComponent ? COMPONENT_DOTS : DOTS] : [path, direct$1(name.slice(1)), isComponent ? COMPONENT_DIRECT : DIRECT];
-              }
-            default:
-              {
-                if (isComponent) return [path, direct$1(name), COMPONENT_PROP];
-                if (name === 'aria') return [path, aria, ARIA];
-                if (name === 'data' && !/^object$/i.test(node.name)) return [path, data, DATA];
-                if (name === 'key') {
-                  if (1 < path.length) throw errors.invalid_key(hint);
-                  return [path, k = true, KEY];
-                }
-                if (name === 'ref') return [path, directFor(ref), REF];
-                if (name.startsWith('on')) return [path, directFor(name.toLowerCase()), DIRECT];
-                return [path, attribute(name), ATTRIBUTE];
-              }
-          }
-        }
-    }
-  };
-
-  var direct = true;
-
-  /** @param {boolean} value */
-  var _set = function _set(value) {
-    direct = value;
-  };
-
-  /** @returns {boolean} */
-  var _get = function _get() {
-    return direct;
-  };
-
-  function _createForOfIteratorHelper(r, e) { var t = "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (!t) { if (Array.isArray(r) || (t = _unsupportedIterableToArray(r)) || e) { t && (r = t); var _n = 0, F = function F() {}; return { s: F, n: function n() { return _n >= r.length ? { done: true } : { done: false, value: r[_n++] }; }, e: function e(r) { throw r; }, f: F }; } throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); } var o, a = true, u = false; return { s: function s() { t = t.call(r); }, n: function n() { var r = t.next(); return a = r.done, r; }, e: function e(r) { u = true, o = r; }, f: function f() { try { a || null == t["return"] || t["return"](); } finally { if (u) throw o; } } }; }
-  function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0; } }
-  function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
-
-  /**
-   * @param {Hole} hole
-   * @returns
-   */
-  var dom = function dom(hole) {
-    return diffFragment(hole.n ? hole.update(hole) : hole.valueOf(false), 1);
-  };
-  var holed = function holed(prev, current) {
-    var changes = [],
-      h = prev.length,
-      l = current.length;
-    for (var c, p, j = 0, i = 0; i < l; i++) {
-      c = current[i];
-      changes[i] = j < h && (p = prev[j++]).t === c.t ? (current[i] = p).update(c) : c.valueOf(false);
-    }
-    return changes;
-  };
-
-  /**
-   * @param {Hole} hole
-   * @param {unknown} value
-   * @returns {Node}
-   */
-  var keyed$1 = function keyed(hole, value) {
-    var _hole$t$2$get$update, _hole$t$2$get;
-    return /** @type {import('./keyed.js').Keyed} */(_hole$t$2$get$update = (_hole$t$2$get = hole.t[2].get(value)) === null || _hole$t$2$get === void 0 ? void 0 : _hole$t$2$get.update(hole)) !== null && _hole$t$2$get$update !== void 0 ? _hole$t$2$get$update : hole.valueOf(false);
-  };
-
-  /**
-   * 
-   * @param {Function} Component
-   * @param {Object} obj
-   * @param {unknown[]} signals
-   * @returns {Hole}
-   */
-  var component = function component(Component, obj, signals) {
-    signals.length;
-    var wasDirect = _get();
-    if (wasDirect) _set(!wasDirect);
-    try {
-      return Component(obj, global);
-    } finally {
-      if (wasDirect) _set(wasDirect);
-    }
-  };
-
-  /**
-   * @param {Hole} hole
-   * @param {Hole} value
-   * @returns {Hole}
-   */
-  var getHole = function getHole(hole, value) {
-    if (hole.t === value.t) {
-      hole.update(value);
-    } else {
-      hole.n.replaceWith(dom(value));
-      hole = value;
-    }
-    return hole;
-  };
-  var createEffect = function createEffect(node, value, obj) {
-    var signals = [],
-      entry = [COMPONENT, null, obj],
-      bootstrap = true,
-      hole;
-    effect(function () {
-      if (bootstrap) {
-        bootstrap = false;
-        hole = component(value, obj, signals);
-        if (!signals.length) signals = children;
-        if (hole) {
-          node.replaceWith(dom(hole));
-          entry[1] = hole;
-        } else node.remove();
-      } else {
-        var result = component(value, obj, signals);
-        if (hole) {
-          if (!(result instanceof Hole)) throw errors.invalid_component(value);
-          if (getHole(hole, /** @type {Hole} */result) === result) entry[2] = hole = result;
-        }
-      }
-    });
-    return entry;
-  };
-  var updateRefs = function updateRefs(refs) {
-    var _iterator = _createForOfIteratorHelper(refs),
-      _step;
-    try {
-      for (_iterator.s(); !(_step = _iterator.n()).done;) {
-        var node = _step.value;
-        var value = node[ref];
-        if (typeof value === 'function') value(node);else if (value instanceof Signal) value.value = node;else if (value) value.current = node;
-      }
-    } catch (err) {
-      _iterator.e(err);
-    } finally {
-      _iterator.f();
-    }
-  };
-  var props = Symbol();
-  var global = {};
-  var Hole = /*#__PURE__*/function () {
-    /**
-     * @param {[DocumentFragment, unknown[], import('./keyed.js').Keyed?]} template
-     * @param {unknown[]} values
-     */
-    function Hole(template, values) {
-      _classCallCheck(this, Hole);
-      this.t = template;
-      this.v = values;
-      this.n = null;
-      this.k = -1;
-    }
-
-    /**
-     * @param {boolean} [direct]
-     * @returns {Node}
-     */
-    return _createClass(Hole, [{
-      key: "valueOf",
-      value: function valueOf() {
-        var direct = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : _get();
-        var _this$t = _slicedToArray(this.t, 3),
-          fragment = _this$t[0],
-          updates = _this$t[1],
-          keys = _this$t[2];
-        var root = document.importNode(fragment, true);
-        var values = this.v;
-        var length = values.length;
-        var changes = children;
-        var node, prev, refs;
-        if (length !== updates.length) throw errors.invalid_interpolation(this.t[3], values);
-        if (0 < length) {
-          changes = updates.slice(0);
-          while (length--) {
-            var _updates$length = _slicedToArray(updates[length], 3),
-              path = _updates$length[0],
-              update = _updates$length[1],
-              type = _updates$length[2];
-            var value = values[length];
-            if (prev !== path) {
-              node = resolve(root, path);
-              prev = path;
-              if (!node) throw errors.invalid_path(this.t[3], path);
-            }
-            if (type & COMPONENT) {
-              var obj = node[props] || (node[props] = {});
-              if (type === COMPONENT) {
-                var _obj$children;
-                var _iterator2 = _createForOfIteratorHelper(node.attributes),
-                  _step2;
-                try {
-                  for (_iterator2.s(); !(_step2 = _iterator2.n()).done;) {
-                    var _obj$name;
-                    var _step2$value = _step2.value,
-                      name = _step2$value.name,
-                      _value = _step2$value.value;
-                    (_obj$name = obj[name]) !== null && _obj$name !== void 0 ? _obj$name : obj[name] = _value;
-                  }
-                } catch (err) {
-                  _iterator2.e(err);
-                } finally {
-                  _iterator2.f();
-                }
-                (_obj$children = obj.children) !== null && _obj$children !== void 0 ? _obj$children : obj.children = _toConsumableArray(node.content.childNodes);
-                changes[length] = createEffect(node, value, obj);
-              } else {
-                update(obj, value);
-                changes[length] = [type, update, obj];
-              }
-            } else {
-              var commit = true;
-              if (type & ARRAY && !isArray(value)) throw errors.invalid_interpolation(this.t[3], value);
-              if (!direct && type & COMMENT && !(type & SIGNAL)) {
-                if (type & ARRAY) {
-                  commit = false;
-                  if (value.length) update(node, value[0] instanceof Hole ? holed(children, value) : value);
-                } else if (value instanceof Hole) {
-                  commit = false;
-                  update(node, dom(value));
-                }
-              }
-              if (commit) {
-                if (type === KEY) {
-                  if (!keys) throw errors.invalid_key(value);
-                  this.k = length;
-                } else {
-                  if (type === REF) (refs !== null && refs !== void 0 ? refs : refs = new Set()).add(node);
-                  update(node, value);
-                }
-              }
-              changes[length] = [type, update, value, node];
-              if (direct && type & COMMENT) node.remove();
-            }
-          }
-          if (refs) updateRefs(refs);
-        }
-        var childNodes = root.childNodes;
-        var size = childNodes.length;
-        var n = size === 1 ? childNodes[0] : size ? PersistentFragment(root) : root;
-        this.v = changes;
-        this.n = n;
-        if (-1 < this.k) keys.set(changes[this.k][2], n, this);
-        return n;
-      }
-
-      /**
-       * @param {Hole} hole
-       * @returns {Node}
-       */
-    }, {
-      key: "update",
-      value: function update(hole) {
-        var key = this.k;
-        var changes = this.v;
-        var values = hole.v;
-        if (-1 < key && changes[key][2] !== values[key]) return keyed$1(hole, values[key]);
-        var length = changes.length;
-        while (length--) {
-          var entry = changes[length];
-          var _entry = _slicedToArray(entry, 3),
-            type = _entry[0],
-            _update = _entry[1],
-            prev = _entry[2];
-          if (type === KEY) continue;
-          var value = values[length];
-          if (type & COMPONENT) {
-            if (type === COMPONENT) {
-              if (typeof value !== 'function') throw errors.invalid_component(value);
-              var result = value(prev, global);
-              if (_update) {
-                if (!(result instanceof Hole)) throw errors.invalid_component(value);
-                if (getHole(_update, /** @type {Hole} */result) === result) entry[2] = result;
-              }
-            } else _update(prev, value);
-          } else {
-            var change = value;
-            if (type & ARRAY) {
-              if (!isArray(value)) throw errors.invalid_interpolation([], value);
-              if (type & COMMENT) {
-                // TODO: a smarter differ that does not require 2 loops
-                if (value.length) {
-                  if (value[0] instanceof Hole) {
-                    if (prev.length && !(prev[0] instanceof Hole)) throw errors.invalid_interpolation([], value[0]);
-                    change = holed(prev, value);
-                  }
-                }
-              } else if (type & EVENT && value[0] === prev[0]) continue;
-            } else if (type & COMMENT) {
-              if (type & SIGNAL) {
-                if (value === prev) {
-                  _update(entry[3], change);
-                  continue;
-                }
-              } else if (prev instanceof Hole) {
-                if (!(value instanceof Hole)) throw errors.invalid_interpolation([], value);
-                value = getHole(prev, /** @type {Hole} */value);
-                change = value.n;
-              }
-            }
-            if (value !== prev) {
-              entry[2] = value;
-              _update(entry[3], change);
-            }
-          }
-        }
-        return /** @type {Node} */this.n;
-      }
-    }]);
-  }();
-
   function _isNativeFunction(t) {
     try {
       return -1 !== Function.toString.call(t).indexOf("[native code]");
@@ -1973,149 +127,1321 @@ var uce = (function (exports) {
     }, _wrapNativeSuper(t);
   }
 
-  function _callSuper$1(t, o, e) { return o = _getPrototypeOf(o), _possibleConstructorReturn(t, _isNativeReflectConstruct$1() ? Reflect.construct(o, [], _getPrototypeOf(t).constructor) : o.apply(t, e)); }
-  function _isNativeReflectConstruct$1() { try { var t = !Boolean.prototype.valueOf.call(Reflect.construct(Boolean, [], function () {})); } catch (t) {} return (_isNativeReflectConstruct$1 = function _isNativeReflectConstruct() { return !!t; })(); }
-  function _superPropGet(t, o, e, r) { var p = _get$1(_getPrototypeOf(t.prototype ), o, e); return 2 & r && "function" == typeof p ? function (t) { return p.apply(e, t); } : p; }
-  var keyed = new WeakMap();
+  function _arrayWithHoles(r) {
+    if (Array.isArray(r)) return r;
+  }
 
-  //@ts-ignore
-  var Keyed = /*#__PURE__*/function (_Map) {
-    function Keyed() {
+  function _iterableToArrayLimit(r, l) {
+    var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"];
+    if (null != t) {
+      var e,
+        n,
+        i,
+        u,
+        a = [],
+        f = true,
+        o = false;
+      try {
+        if (i = (t = t.call(r)).next, 0 === l) {
+          if (Object(t) !== t) return;
+          f = !1;
+        } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0);
+      } catch (r) {
+        o = true, n = r;
+      } finally {
+        try {
+          if (!f && null != t["return"] && (u = t["return"](), Object(u) !== u)) return;
+        } finally {
+          if (o) throw n;
+        }
+      }
+      return a;
+    }
+  }
+
+  function _arrayLikeToArray$1(r, a) {
+    (null == a || a > r.length) && (a = r.length);
+    for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e];
+    return n;
+  }
+
+  function _unsupportedIterableToArray$1(r, a) {
+    if (r) {
+      if ("string" == typeof r) return _arrayLikeToArray$1(r, a);
+      var t = {}.toString.call(r).slice(8, -1);
+      return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray$1(r, a) : void 0;
+    }
+  }
+
+  function _nonIterableRest() {
+    throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
+  }
+
+  function _slicedToArray(r, e) {
+    return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray$1(r, e) || _nonIterableRest();
+  }
+
+  function _defineProperty(e, r, t) {
+    return (r = toPropertyKey(r)) in e ? Object.defineProperty(e, r, {
+      value: t,
+      enumerable: true,
+      configurable: true,
+      writable: true
+    }) : e[r] = t, e;
+  }
+
+  function _arrayWithoutHoles(r) {
+    if (Array.isArray(r)) return _arrayLikeToArray$1(r);
+  }
+
+  function _iterableToArray(r) {
+    if ("undefined" != typeof Symbol && null != r[Symbol.iterator] || null != r["@@iterator"]) return Array.from(r);
+  }
+
+  function _nonIterableSpread() {
+    throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
+  }
+
+  function _toConsumableArray(r) {
+    return _arrayWithoutHoles(r) || _iterableToArray(r) || _unsupportedIterableToArray$1(r) || _nonIterableSpread();
+  }
+
+  function _superPropBase(t, o) {
+    for (; !{}.hasOwnProperty.call(t, o) && null !== (t = _getPrototypeOf(t)););
+    return t;
+  }
+
+  function set(e, r, t, o) {
+    return set = "undefined" != typeof Reflect && Reflect.set ? Reflect.set : function (e, r, t, o) {
+      var f,
+        i = _superPropBase(e, r);
+      if (i) {
+        if ((f = Object.getOwnPropertyDescriptor(i, r)).set) return f.set.call(o, t), true;
+        if (!f.writable) return false;
+      }
+      if (f = Object.getOwnPropertyDescriptor(o, r)) {
+        if (!f.writable) return false;
+        f.value = t, Object.defineProperty(o, r, f);
+      } else _defineProperty(o, r, t);
+      return true;
+    }, set(e, r, t, o);
+  }
+  function _set(e, r, t, o, f) {
+    if (!set(e, r, t, o || e) && f) throw new TypeError("failed to set property");
+    return t;
+  }
+
+  function _get() {
+    return _get = "undefined" != typeof Reflect && Reflect.get ? Reflect.get.bind() : function (e, t, r) {
+      var p = _superPropBase(e, t);
+      if (p) {
+        var n = Object.getOwnPropertyDescriptor(p, t);
+        return n.get ? n.get.call(arguments.length < 3 ? e : r) : n.value;
+      }
+    }, _get.apply(null, arguments);
+  }
+
+  function _createForOfIteratorHelper(r, e) { var t = "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (!t) { if (Array.isArray(r) || (t = _unsupportedIterableToArray(r)) || e) { t && (r = t); var _n1 = 0, F = function F() {}; return { s: F, n: function n() { return _n1 >= r.length ? { done: true } : { done: false, value: r[_n1++] }; }, e: function e(r) { throw r; }, f: F }; } throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); } var o, a = true, u = false; return { s: function s() { t = t.call(r); }, n: function n() { var r = t.next(); return a = r.done, r; }, e: function e(r) { u = true, o = r; }, f: function f() { try { a || null == t["return"] || t["return"](); } finally { if (u) throw o; } } }; }
+  function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0; } }
+  function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
+  function _classPrivateFieldInitSpec(e, t, a) { _checkPrivateRedeclaration(e, t), t.set(e, a); }
+  function _checkPrivateRedeclaration(e, t) { if (t.has(e)) throw new TypeError("Cannot initialize the same private elements twice on an object"); }
+  function _classPrivateFieldGet(s, a) { return s.get(_assertClassBrand(s, a)); }
+  function _classPrivateFieldSet(s, a, r) { return s.set(_assertClassBrand(s, a), r), r; }
+  function _assertClassBrand(e, t, n) { if ("function" == typeof e ? e === t : e.has(t)) return arguments.length < 3 ? t : n; throw new TypeError("Private element is not present on this object"); }
+  function _superPropSet(t, e, o, r, p, f) { return _set(_getPrototypeOf(t.prototype ), e, o, r, p); }
+  function _superPropGet(t, o, e, r) { var p = _get(_getPrototypeOf(1 & r ? t.prototype : t), o, e); return 2 & r && "function" == typeof p ? function (t) { return p.apply(e, t); } : p; }
+  function _callSuper$1(t, o, e) { return o = _getPrototypeOf(o), _possibleConstructorReturn(t, _isNativeReflectConstruct$1() ? Reflect.construct(o, e || [], _getPrototypeOf(t).constructor) : o.apply(t, e)); }
+  function _isNativeReflectConstruct$1() { try { var t = !Boolean.prototype.valueOf.call(Reflect.construct(Boolean, [], function () {})); } catch (t) {} return (_isNativeReflectConstruct$1 = function _isNativeReflectConstruct() { return !!t; })(); }
+  var e;
+  !function (e) {
+    e[e.None = 0] = "None", e[e.Mutable = 1] = "Mutable", e[e.Watching = 2] = "Watching", e[e.RecursedCheck = 4] = "RecursedCheck", e[e.Recursed = 8] = "Recursed", e[e.Dirty = 16] = "Dirty", e[e.Pending = 32] = "Pending";
+  }(e || (e = {}));
+  var t = [],
+    n = [],
+    _ref = function (_ref2) {
+      var e = _ref2.update,
+        t = _ref2.notify,
+        n = _ref2.unwatched;
+      var s = 0;
+      return {
+        link: function link(e, t) {
+          var n = t.depsTail;
+          if (void 0 !== n && n.dep === e) return;
+          var i;
+          if (4 & t.flags && (i = void 0 !== n ? n.nextDep : t.deps, void 0 !== i && i.dep === e)) return i.version = s, void (t.depsTail = i);
+          var r = e.subsTail;
+          if (void 0 !== r && r.version === s && r.sub === t) return;
+          var o = t.depsTail = e.subsTail = {
+            version: s,
+            dep: e,
+            sub: t,
+            prevDep: n,
+            nextDep: i,
+            prevSub: r,
+            nextSub: void 0
+          };
+          void 0 !== i && (i.prevDep = o);
+          void 0 !== n ? n.nextDep = o : t.deps = o;
+          void 0 !== r ? r.nextSub = o : e.subs = o;
+        },
+        unlink: i,
+        propagate: function propagate(e) {
+          var n,
+            s = e.nextSub;
+          e: for (;;) {
+            var _i = e.sub;
+            var _r = _i.flags;
+            if (3 & _r && (60 & _r ? 12 & _r ? 4 & _r ? 48 & _r || !o(e, _i) ? _r = 0 : (_i.flags = 40 | _r, _r &= 1) : _i.flags = -9 & _r | 32 : _r = 0 : _i.flags = 32 | _r, 2 & _r && t(_i), 1 & _r)) {
+              var _t = _i.subs;
+              if (void 0 !== _t) {
+                e = _t, void 0 !== _t.nextSub && (n = {
+                  value: s,
+                  prev: n
+                }, s = e.nextSub);
+                continue;
+              }
+            }
+            if (void 0 === (e = s)) {
+              for (; void 0 !== n;) if (e = n.value, n = n.prev, void 0 !== e) {
+                s = e.nextSub;
+                continue e;
+              }
+              break;
+            }
+            s = e.nextSub;
+          }
+        },
+        checkDirty: function checkDirty(t, n) {
+          var s,
+            i = 0;
+          e: for (;;) {
+            var _o = t.dep,
+              _l = _o.flags;
+            var _a = false;
+            if (16 & n.flags) _a = true;else if (17 & ~_l) {
+              if (!(33 & ~_l)) {
+                void 0 === t.nextSub && void 0 === t.prevSub || (s = {
+                  value: t,
+                  prev: s
+                }), t = _o.deps, n = _o, ++i;
+                continue;
+              }
+            } else if (e(_o)) {
+              var _e2 = _o.subs;
+              void 0 !== _e2.nextSub && r(_e2), _a = true;
+            }
+            if (_a || void 0 === t.nextDep) {
+              for (; i;) {
+                --i;
+                var _o2 = n.subs,
+                  _l2 = void 0 !== _o2.nextSub;
+                if (_l2 ? (t = s.value, s = s.prev) : t = _o2, _a) {
+                  if (e(n)) {
+                    _l2 && r(_o2), n = t.sub;
+                    continue;
+                  }
+                } else n.flags &= -33;
+                if (n = t.sub, void 0 !== t.nextDep) {
+                  t = t.nextDep;
+                  continue e;
+                }
+                _a = false;
+              }
+              return _a;
+            }
+            t = t.nextDep;
+          }
+        },
+        endTracking: function endTracking(e) {
+          var t = e.depsTail;
+          var n = void 0 !== t ? t.nextDep : e.deps;
+          for (; void 0 !== n;) n = i(n, e);
+          e.flags &= -5;
+        },
+        startTracking: function startTracking(e) {
+          ++s, e.depsTail = void 0, e.flags = -57 & e.flags | 4;
+        },
+        shallowPropagate: r
+      };
+      function i(e) {
+        var t = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : e.sub;
+        var s = e.dep,
+          i = e.prevDep,
+          r = e.nextDep,
+          o = e.nextSub,
+          l = e.prevSub;
+        return void 0 !== r ? r.prevDep = i : t.depsTail = i, void 0 !== i ? i.nextDep = r : t.deps = r, void 0 !== o ? o.prevSub = l : s.subsTail = l, void 0 !== l ? l.nextSub = o : void 0 === (s.subs = o) && n(s), r;
+      }
+      function r(e) {
+        do {
+          var _n = e.sub,
+            _s = e.nextSub,
+            _i2 = _n.flags;
+          32 == (48 & _i2) && (_n.flags = 16 | _i2, 2 & _i2 && t(_n)), e = _s;
+        } while (void 0 !== e);
+      }
+      function o(e, t) {
+        var n = t.depsTail;
+        if (void 0 !== n) {
+          var _s2 = t.deps;
+          do {
+            if (_s2 === e) return true;
+            if (_s2 === n) break;
+            _s2 = _s2.nextDep;
+          } while (void 0 !== _s2);
+        }
+        return false;
+      }
+    }({
+      update: function update(e) {
+        return "getter" in e ? y(e) : w(e, e.value);
+      },
+      notify: function e(t) {
+        var s = t.flags;
+        if (!(64 & s)) {
+          t.flags = 64 | s;
+          var _i3 = t.subs;
+          void 0 !== _i3 ? e(_i3.sub) : n[h++] = t;
+        }
+      },
+      unwatched: function unwatched(e) {
+        if ("getter" in e) {
+          var _t2 = e.deps;
+          if (void 0 !== _t2) {
+            e.flags = 17;
+            do {
+              _t2 = i(_t2, e);
+            } while (void 0 !== _t2);
+          }
+        } else "previousValue" in e || D.call(e);
+      }
+    }),
+    s = _ref.link,
+    i = _ref.unlink,
+    r = _ref.propagate,
+    o = _ref.checkDirty,
+    l = _ref.endTracking,
+    a = _ref.startTracking,
+    c = _ref.shallowPropagate;
+  var u,
+    d,
+    f = 0,
+    p = 0,
+    h = 0;
+  function v(e) {
+    var t = u;
+    return u = e, t;
+  }
+  function g(e) {
+    var t = d;
+    return d = e, t;
+  }
+  function b(e) {
+    return T.bind({
+      previousValue: e,
+      value: e,
+      subs: void 0,
+      subsTail: void 0,
+      flags: 1
+    });
+  }
+  function m(e) {
+    return C.bind({
+      value: void 0,
+      subs: void 0,
+      subsTail: void 0,
+      deps: void 0,
+      depsTail: void 0,
+      flags: 17,
+      getter: e
+    });
+  }
+  function x(e) {
+    var t = {
+      fn: e,
+      subs: void 0,
+      subsTail: void 0,
+      deps: void 0,
+      depsTail: void 0,
+      flags: 2
+    };
+    void 0 !== u ? s(t, u) : void 0 !== d && s(t, d);
+    var n = v(t);
+    try {
+      t.fn();
+    } finally {
+      v(n);
+    }
+    return D.bind(t);
+  }
+  function y(e) {
+    var t = v(e);
+    a(e);
+    try {
+      var _t3 = e.value;
+      return _t3 !== (e.value = e.getter(_t3));
+    } finally {
+      v(t), l(e);
+    }
+  }
+  function w(e, t) {
+    return e.flags = 1, e.previousValue !== (e.previousValue = t);
+  }
+  function S(e, t) {
+    if (16 & t || 32 & t && o(e.deps, e)) {
+      var _t4 = v(e);
+      a(e);
+      try {
+        e.fn();
+      } finally {
+        v(_t4), l(e);
+      }
+      return;
+    }
+    32 & t && (e.flags = -33 & t);
+    var n = e.deps;
+    for (; void 0 !== n;) {
+      var _e3 = n.dep,
+        _t5 = _e3.flags;
+      64 & _t5 && S(_e3, _e3.flags = -65 & _t5), n = n.nextDep;
+    }
+  }
+  function k() {
+    for (; p < h;) {
+      var _e4 = n[p];
+      n[p++] = void 0, S(_e4, _e4.flags &= -65);
+    }
+    p = 0, h = 0;
+  }
+  function C() {
+    var e = this.flags;
+    if (16 & e || 32 & e && o(this.deps, this)) {
+      if (y(this)) {
+        var _e5 = this.subs;
+        void 0 !== _e5 && c(_e5);
+      }
+    } else 32 & e && (this.flags = -33 & e);
+    return void 0 !== u ? s(this, u) : void 0 !== d && s(this, d), this.value;
+  }
+  function T() {
+    if (!arguments.length) {
+      var _e6 = this.value;
+      if (16 & this.flags && w(this, _e6)) {
+        var _e7 = this.subs;
+        void 0 !== _e7 && c(_e7);
+      }
+      return void 0 !== u && s(this, u), _e6;
+    }
+    {
+      var _t6 = arguments.length <= 0 ? undefined : arguments[0];
+      if (this.value !== (this.value = _t6)) {
+        this.flags = 17;
+        var _e8 = this.subs;
+        void 0 !== _e8 && (r(_e8), f || k());
+      }
+    }
+  }
+  function D() {
+    var e = this.deps;
+    for (; void 0 !== e;) e = i(e, this);
+    var t = this.subs;
+    void 0 !== t && i(t), this.flags = 0;
+  }
+  var O = {
+      greedy: false
+    },
+    N = function N(e) {
+      return new A(e);
+    },
+    $ = function $(e) {
+      t.push(v(void 0));
+      try {
+        return e();
+      } finally {
+        v(t.pop());
+      }
+    };
+  var W = /*#__PURE__*/function () {
+    function W(e, t) {
+      _classCallCheck(this, W);
+      this._ = e(t);
+    }
+    return _createClass(W, [{
+      key: "value",
+      get: function get() {
+        return this._();
+      },
+      set: function set(e) {
+        this._(e);
+      }
+    }, {
+      key: "peek",
+      value: function peek() {
+        return $(this._);
+      }
+    }, {
+      key: "valueOf",
+      value: function valueOf() {
+        return this.value;
+      }
+    }]);
+  }();
+  var A = /*#__PURE__*/function (_W) {
+    function A(e) {
+      _classCallCheck(this, A);
+      return _callSuper$1(this, A, [m, e]);
+    }
+    _inherits(A, _W);
+    return _createClass(A, [{
+      key: "value",
+      get: function get() {
+        return this._();
+      },
+      set: function set(e) {
+        throw new Error("Computed values are read-only");
+      }
+    }]);
+  }(W);
+  var E = /*#__PURE__*/function (_W2) {
+    function E(e) {
+      _classCallCheck(this, E);
+      return _callSuper$1(this, E, [b, [e]]);
+    }
+    _inherits(E, _W2);
+    return _createClass(E, [{
+      key: "value",
+      get: function get() {
+        return _superPropGet(E, "value", this, 1)[0];
+      },
+      set: function set(e) {
+        _superPropSet(E, "value", [e], this, 1);
+      }
+    }, {
+      key: "peek",
+      value: function peek() {
+        return _superPropGet(E, "peek", this, 3)([])[0];
+      }
+    }]);
+  }(W);
+  var M = function M(e) {
+    ++f;
+    try {
+      return e();
+    } finally {
+      --f || k();
+    }
+  };
+  var R = function R(e) {
+    var _ref3 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : O,
+      _ref3$greedy = _ref3.greedy,
+      t = _ref3$greedy === void 0 ? false : _ref3$greedy;
+    return t ? new E(e) : new W(b, e);
+  };
+  function L() {
+    return R.apply(null, arguments);
+  }
+  var _ = function _(e) {
+      R = e;
+    },
+    j = Array.isArray,
+    F = Object.assign,
+    P = Object.defineProperties,
+    B = Object.entries,
+    J = Object.freeze;
+  var _e9 = /*#__PURE__*/new WeakMap();
+  var V = /*#__PURE__*/function () {
+    function V(e) {
+      _classCallCheck(this, V);
+      _classPrivateFieldInitSpec(this, _e9, void 0);
+      _classPrivateFieldSet(_e9, this, e);
+    }
+    return _createClass(V, [{
+      key: "valueOf",
+      value: function valueOf() {
+        return _classPrivateFieldGet(_e9, this);
+      }
+    }, {
+      key: "toString",
+      value: function toString() {
+        return String(_classPrivateFieldGet(_e9, this));
+      }
+    }]);
+  }();
+  var z = function z(e) {
+      return new V(e);
+    },
+    H = function H(e) {
+      return document.createComment(e);
+    },
+    q = 42,
+    G = new Set(["plaintext", "script", "style", "textarea", "title", "xmp"]),
+    I = new Set(["area", "base", "br", "col", "embed", "hr", "img", "input", "keygen", "link", "menuitem", "meta", "param", "source", "track", "wbr"]),
+    K = J({}),
+    Q = J([]),
+    U = function U(e, t) {
+      return e.children === Q && (e.children = []), e.children.push(t), t.parent = e, t;
+    },
+    X = function X(e, t, n) {
+      e.props === K && (e.props = {}), e.props[t] = n;
+    },
+    Y = function Y(e, t, n) {
+      e !== t && n.push(e);
+    };
+  var Z = /*#__PURE__*/function () {
+    function Z(e) {
+      _classCallCheck(this, Z);
+      this.type = e, this.parent = null;
+    }
+    return _createClass(Z, [{
+      key: "toJSON",
+      value: function toJSON() {
+        return [this.type, this.data];
+      }
+    }]);
+  }();
+  var ee = /*#__PURE__*/function (_Z) {
+    function ee(e) {
       var _this;
-      _classCallCheck(this, Keyed);
-      //@ts-ignore
-      (_this = _callSuper$1(this, Keyed))._ = new FinalizationRegistry(function (key) {
-        return _this["delete"](key);
-      });
+      _classCallCheck(this, ee);
+      _this = _callSuper$1(this, ee, [8]), _this.data = e;
       return _this;
     }
-    _inherits(Keyed, _Map);
-    return _createClass(Keyed, [{
-      key: "get",
-      value: function get(key) {
-        var _superPropGet2;
-        var node = (_superPropGet2 = _superPropGet(Keyed, "get", this, 3)([key])) === null || _superPropGet2 === void 0 ? void 0 : _superPropGet2.deref();
-        return node && keyed.get(node);
+    _inherits(ee, _Z);
+    return _createClass(ee, [{
+      key: "toString",
+      value: function toString() {
+        return "<!--".concat(this.data, "-->");
       }
-
-      /**
-       * @param {any} key
-       * @param {Node} node
-       * @param {import('./rabbit.js').Hole} hole
-       */
-      //@ts-ignore
+    }]);
+  }(Z);
+  var te = /*#__PURE__*/function (_Z2) {
+    function te(e) {
+      var _this2;
+      _classCallCheck(this, te);
+      _this2 = _callSuper$1(this, te, [10]), _this2.data = e;
+      return _this2;
+    }
+    _inherits(te, _Z2);
+    return _createClass(te, [{
+      key: "toString",
+      value: function toString() {
+        return "<!".concat(this.data, ">");
+      }
+    }]);
+  }(Z);
+  var ne = /*#__PURE__*/function (_Z3) {
+    function ne(e) {
+      var _this3;
+      _classCallCheck(this, ne);
+      _this3 = _callSuper$1(this, ne, [3]), _this3.data = e;
+      return _this3;
+    }
+    _inherits(ne, _Z3);
+    return _createClass(ne, [{
+      key: "toString",
+      value: function toString() {
+        return this.data;
+      }
+    }]);
+  }(Z);
+  var se = /*#__PURE__*/function (_Z4) {
+    function se() {
+      var _this4;
+      _classCallCheck(this, se);
+      _this4 = _callSuper$1(this, se, [q]), _this4.name = "template", _this4.props = K, _this4.children = Q;
+      return _this4;
+    }
+    _inherits(se, _Z4);
+    return _createClass(se, [{
+      key: "toJSON",
+      value: function toJSON() {
+        var e = [q];
+        return Y(this.props, K, e), Y(this.children, Q, e), e;
+      }
+    }, {
+      key: "toString",
+      value: function toString() {
+        var e = "";
+        for (var _t7 in this.props) {
+          var _n2 = this.props[_t7];
+          null != _n2 && ("boolean" == typeof _n2 ? _n2 && (e += " ".concat(_t7)) : e += " ".concat(_t7, "=\"").concat(_n2, "\""));
+        }
+        return "<template".concat(e, ">").concat(this.children.join(""), "</template>");
+      }
+    }]);
+  }(Z);
+  var ie = /*#__PURE__*/function (_Z5) {
+    function ie(e) {
+      var _this5;
+      var t = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
+      _classCallCheck(this, ie);
+      _this5 = _callSuper$1(this, ie, [1]), _this5.name = e, _this5.xml = t, _this5.props = K, _this5.children = Q;
+      return _this5;
+    }
+    _inherits(ie, _Z5);
+    return _createClass(ie, [{
+      key: "toJSON",
+      value: function toJSON() {
+        var e = [1, this.name, +this.xml];
+        return Y(this.props, K, e), Y(this.children, Q, e), e;
+      }
+    }, {
+      key: "toString",
+      value: function toString() {
+        var e = this.xml,
+          t = this.name,
+          n = this.props,
+          s = this.children,
+          i = s.length;
+        var r = "<".concat(t);
+        for (var _t8 in n) {
+          var _s3 = n[_t8];
+          null != _s3 && ("boolean" == typeof _s3 ? _s3 && (r += e ? " ".concat(_t8, "=\"\"") : " ".concat(_t8)) : r += " ".concat(_t8, "=\"").concat(_s3, "\""));
+        }
+        if (i) {
+          r += ">";
+          for (var _n3 = !e && G.has(t), _o3 = 0; _o3 < i; _o3++) r += _n3 ? s[_o3].data : s[_o3];
+          r += "</".concat(t, ">");
+        } else r += e ? " />" : I.has(t) ? ">" : "></".concat(t, ">");
+        return r;
+      }
+    }]);
+  }(Z);
+  var re = /*#__PURE__*/function (_Z6) {
+    function re() {
+      var _this6;
+      _classCallCheck(this, re);
+      _this6 = _callSuper$1(this, re, [11]), _this6.name = "#fragment", _this6.children = Q;
+      return _this6;
+    }
+    _inherits(re, _Z6);
+    return _createClass(re, [{
+      key: "toJSON",
+      value: function toJSON() {
+        var e = [11];
+        return Y(this.children, Q, e), e;
+      }
+    }, {
+      key: "toString",
+      value: function toString() {
+        return this.children.join("");
+      }
+    }]);
+  }(Z);
+  var oe = "\0",
+    le = "\"".concat(oe, "\""),
+    ae = "'".concat(oe, "'"),
+    ce = /\x00|<[^><\s]+/g,
+    ue = /([^\s/>=]+)(?:=(\x00|(?:(['"])[\s\S]*?\3)))?/g,
+    de = function de(e, t, n, s, i) {
+      return [t, n, s];
+    },
+    fe = function fe(e) {
+      var t = [];
+      for (; e.parent;) {
+        switch (e.type) {
+          case q:
+          case 1:
+            "template" === e.name && t.push(-1);
+        }
+        t.push(e.parent.children.indexOf(e)), e = e.parent;
+      }
+      return t;
+    },
+    pe = function pe(e, t) {
+      do {
+        e = e.parent;
+      } while (t.has(e));
+      return e;
+    };
+  var he = function he(e, t) {
+    return t < 0 ? e.content : e.childNodes[t];
+  };
+  var ve = function ve(e, t) {
+    return t.reduceRight(he, e);
+  };
+  var ge,
+    be = false;
+  var me = function me(_ref4) {
+      var e = _ref4.firstChild,
+        t = _ref4.lastChild;
+      var n = ge || (ge = document.createRange());
+      return n.setStartAfter(e), n.setEndAfter(t), n.deleteContents(), e;
+    },
+    xe = function xe(e, t) {
+      return be && 11 === e.nodeType ? 1 / t < 0 ? t ? me(e) : e.lastChild : t ? e.valueOf() : e.firstChild : e;
+    },
+    ye = Symbol("nodes"),
+    we = {
+      get: function get() {
+        return this.firstChild.parentNode;
+      }
+    },
+    Se = {
+      value: function value(e) {
+        me(this).replaceWith(e);
+      }
+    },
+    ke = {
+      value: function value() {
+        me(this).remove();
+      }
+    },
+    Ce = {
+      value: function value() {
+        var e = this.parentNode;
+        if (e === this) this[ye] === Q && (this[ye] = _toConsumableArray(this.childNodes));else {
+          if (e) {
+            var _e0 = this.firstChild,
+              _t9 = this.lastChild;
+            for (this[ye] = [_e0]; _e0 !== _t9;) this[ye].push(_e0 = _e0.nextSibling);
+          }
+          this.replaceChildren.apply(this, _toConsumableArray(this[ye]));
+        }
+        return this;
+      }
+    };
+  function Te(e) {
+    var t = H("<>"),
+      n = H("</>");
+    return e.replaceChildren.apply(e, [t].concat(_toConsumableArray(e.childNodes), [n])), be = true, P(e, _defineProperty(_defineProperty(_defineProperty(_defineProperty(_defineProperty(_defineProperty(_defineProperty({}, ye, {
+      writable: true,
+      value: Q
+    }), "firstChild", {
+      value: t
+    }), "lastChild", {
+      value: n
+    }), "parentNode", we), "valueOf", Ce), "replaceWith", Se), "remove", ke));
+  }
+  Te.prototype = DocumentFragment.prototype;
+  var De = 16,
+    Oe = 32768,
+    Ne = function () {
+      var e = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : globalThis.document;
+      var t,
+        n = e.createElement("template");
+      return function (s) {
+        var i = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
+        if (i) return t || (t = e.createRange(), t.selectNodeContents(e.createElementNS("http://www.w3.org/2000/svg", "svg"))), t.createContextualFragment(s);
+        n.innerHTML = s;
+        var r = n.content;
+        return n = n.cloneNode(false), r;
+      };
+    }(document),
+    $e = Symbol("ref"),
+    We = function We(e, t) {
+      var _iterator = _createForOfIteratorHelper(B(t)),
+        _step;
+      try {
+        for (_iterator.s(); !(_step = _iterator.n()).done;) {
+          var _step$value = _slicedToArray(_step.value, 2),
+            _n4 = _step$value[0],
+            _s4 = _step$value[1];
+          var _t0 = "role" === _n4 ? _n4 : "aria-".concat(_n4.toLowerCase());
+          null == _s4 ? e.removeAttribute(_t0) : e.setAttribute(_t0, _s4);
+        }
+      } catch (err) {
+        _iterator.e(err);
+      } finally {
+        _iterator.f();
+      }
+    },
+    Ae = function Ae(e) {
+      return function (t, n) {
+        null == n ? t.removeAttribute(e) : t.setAttribute(e, n);
+      };
+    },
+    Ee = function Ee(e, t) {
+      e[ye] = function (e, t, n, s) {
+        var i = s.parentNode,
+          r = t.length;
+        var o = e.length,
+          l = r,
+          a = 0,
+          c = 0,
+          u = null;
+        for (; a < o || c < l;) if (o === a) {
+          var _e1 = l < r ? c ? n(t[c - 1], -0).nextSibling : n(t[l], 0) : s;
+          for (; c < l;) i.insertBefore(n(t[c++], 1), _e1);
+        } else if (l === c) for (; a < o;) u && u.has(e[a]) || n(e[a], -1).remove(), a++;else if (e[a] === t[c]) a++, c++;else if (e[o - 1] === t[l - 1]) o--, l--;else if (e[a] === t[l - 1] && t[c] === e[o - 1]) {
+          var _s5 = n(e[--o], -0).nextSibling;
+          i.insertBefore(n(t[c++], 1), n(e[a++], -0).nextSibling), i.insertBefore(n(t[--l], 1), _s5), e[o] = t[l];
+        } else {
+          var _u$get;
+          if (!u) {
+            u = new Map();
+            var _e10 = c;
+            for (; _e10 < l;) u.set(t[_e10], _e10++);
+          }
+          var _s6 = (_u$get = u.get(e[a])) !== null && _u$get !== void 0 ? _u$get : -1;
+          if (_s6 < 0) n(e[a++], -1).remove();else if (c < _s6 && _s6 < l) {
+            var _r2 = a,
+              _d = 1;
+            for (; ++_r2 < o && _r2 < l && u.get(e[_r2]) === _s6 + _d;) _d++;
+            if (_d > _s6 - c) {
+              var _r3 = n(e[a], 0);
+              for (; c < _s6;) i.insertBefore(n(t[c++], 1), _r3);
+            } else i.replaceChild(n(t[c++], 1), n(e[a++], -1));
+          } else a++;
+        }
+        return t;
+      }(e[ye] || Q, t, xe, e);
+    },
+    Me = new WeakMap(),
+    Re = function Re(e, t) {
+      var _e$ye;
+      var n = "object" == _typeof(t) ? t !== null && t !== void 0 ? t : e : function (e, t) {
+          var n = Me.get(e);
+          return n ? n.data = t : Me.set(e, n = document.createTextNode(t)), n;
+        }(e, t),
+        s = (_e$ye = e[ye]) !== null && _e$ye !== void 0 ? _e$ye : e;
+      n !== s && s.replaceWith(xe(e[ye] = n, 1));
+    },
+    Le = function Le(e, t) {
+      Re(e, t instanceof W ? t.value : t);
+    },
+    _e = function _e(_ref5, t) {
+      var e = _ref5.dataset;
+      var _iterator2 = _createForOfIteratorHelper(B(t)),
+        _step2;
+      try {
+        for (_iterator2.s(); !(_step2 = _iterator2.n()).done;) {
+          var _step2$value = _slicedToArray(_step2.value, 2),
+            _n5 = _step2$value[0],
+            _s7 = _step2$value[1];
+          null == _s7 ? delete e[_n5] : e[_n5] = _s7;
+        }
+      } catch (err) {
+        _iterator2.e(err);
+      } finally {
+        _iterator2.f();
+      }
+    },
+    je = new Map(),
+    Fe = function Fe(e) {
+      var t = je.get(e);
+      return t || je.set(e, t = Pe(e)), t;
+    },
+    Pe = function Pe(e) {
+      return function (t, n) {
+        t[e] = n;
+      };
+    },
+    Be = function Be(e, t) {
+      var _iterator3 = _createForOfIteratorHelper(B(t)),
+        _step3;
+      try {
+        for (_iterator3.s(); !(_step3 = _iterator3.n()).done;) {
+          var _step3$value = _slicedToArray(_step3.value, 2),
+            _n6 = _step3$value[0],
+            _s8 = _step3$value[1];
+          Ae(_n6)(e, _s8);
+        }
+      } catch (err) {
+        _iterator3.e(err);
+      } finally {
+        _iterator3.f();
+      }
+    },
+    Je = function Je(e, t, n) {
+      return n ? function (n, s) {
+        var i = n[t];
+        i !== null && i !== void 0 && i.length && n.removeEventListener.apply(n, [e].concat(_toConsumableArray(i))), s && n.addEventListener.apply(n, [e].concat(_toConsumableArray(s))), n[t] = s;
+      } : function (n, s) {
+        var i = n[t];
+        i && n.removeEventListener(e, i), s && n.addEventListener(e, s), n[t] = s;
+      };
+    },
+    Ve = function Ve(e) {
+      return function (t, n) {
+        t.toggleAttribute(e, !!n);
+      };
+    };
+  var ze = false;
+  var He = true;
+  var qe = function qe(e) {
+      He = e;
+    },
+    Ge = function Ge() {
+      return He;
+    },
+    Ie = function Ie(e) {
+      return xe(e.n ? e.update(e) : e.valueOf(false), 1);
+    },
+    Ke = function Ke(e, t) {
+      var n = [],
+        s = e.length,
+        i = t.length;
+      for (var _r4, _o4, _l3 = 0, _a2 = 0; _a2 < i; _a2++) _r4 = t[_a2], n[_a2] = _l3 < s && (_o4 = e[_l3++]).t === _r4.t ? (t[_a2] = _o4).update(_r4) : _r4.valueOf(false);
+      return n;
+    },
+    Qe = function Qe(e, t, n) {
+      var s = R,
+        i = n.length;
+      var r = 0;
+      _(function (e) {
+        return r < i ? n[r++] : n[r++] = e instanceof W ? e : s(e);
+      });
+      var o = Ge();
+      o && qe(!o);
+      try {
+        return e(t, Ze);
+      } finally {
+        o && qe(o), _(s);
+      }
+    },
+    Ue = function Ue(e, t) {
+      return e.t === t.t ? e.update(t) : (e.n.replaceWith(Ie(t)), e = t), e;
+    },
+    Xe = function Xe(e, t, n) {
+      var s,
+        i = [],
+        r = [De, null, n],
+        o = true;
+      return x(function () {
+        if (o) o = false, s = Qe(t, n, i), i.length || (i = Q), s ? (e.replaceWith(Ie(s)), r[1] = s) : e.remove();else {
+          var _e11 = Qe(t, n, i);
+          s && Ue(s, _e11) === _e11 && (r[2] = s = _e11);
+        }
+      }), r;
+    },
+    Ye = Symbol(),
+    Ze = {};
+  var et = /*#__PURE__*/function () {
+    function et(e, t) {
+      _classCallCheck(this, et);
+      this.t = e, this.v = t, this.n = null, this.k = -1;
+    }
+    return _createClass(et, [{
+      key: "valueOf",
+      value: function valueOf() {
+        var e = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : Ge();
+        var _this$t = _slicedToArray(this.t, 3),
+          t = _this$t[0],
+          n = _this$t[1],
+          s = _this$t[2],
+          i = document.importNode(t, true),
+          r = this.v;
+        var o,
+          l,
+          a,
+          c = r.length,
+          u = Q;
+        if (0 < c) {
+          for (u = n.slice(0); c--;) {
+            var _n$c = _slicedToArray(n[c], 3),
+              _t1 = _n$c[0],
+              _s9 = _n$c[1],
+              _d2 = _n$c[2],
+              _f = r[c];
+            if (l !== _t1 && (o = ve(i, _t1), l = _t1), _d2 & De) {
+              var _e12 = o[Ye] || (o[Ye] = {});
+              if (_d2 === De) {
+                var _e12$children;
+                var _iterator4 = _createForOfIteratorHelper(o.attributes),
+                  _step4;
+                try {
+                  for (_iterator4.s(); !(_step4 = _iterator4.n()).done;) {
+                    var _e12$_t;
+                    var _step4$value = _step4.value,
+                      _t10 = _step4$value.name,
+                      _n7 = _step4$value.value;
+                    (_e12$_t = _e12[_t10]) !== null && _e12$_t !== void 0 ? _e12$_t : _e12[_t10] = _n7;
+                  }
+                } catch (err) {
+                  _iterator4.e(err);
+                } finally {
+                  _iterator4.f();
+                }
+                (_e12$children = _e12.children) !== null && _e12$children !== void 0 ? _e12$children : _e12.children = _toConsumableArray(o.content.childNodes), u[c] = Xe(o, _f, _e12);
+              } else _s9(_e12, _f), u[c] = [_d2, _s9, _e12];
+            } else {
+              var _t11 = true;
+              e || !(8 & _d2) || _d2 & Oe || (1 & _d2 ? (_t11 = false, _f.length && _s9(o, _f[0] instanceof et ? Ke(Q, _f) : _f)) : _f instanceof et && (_t11 = false, _s9(o, Ie(_f)))), _t11 && (512 === _d2 ? this.k = c : (16384 === _d2 && (a !== null && a !== void 0 ? a : a = new Set()).add(o), _s9(o, _f))), u[c] = [_d2, _s9, _f, o], e && 8 & _d2 && o.remove();
+            }
+          }
+          a && function (e) {
+            var _iterator5 = _createForOfIteratorHelper(e),
+              _step5;
+            try {
+              for (_iterator5.s(); !(_step5 = _iterator5.n()).done;) {
+                var _t12 = _step5.value;
+                var _e13 = _t12[$e];
+                "function" == typeof _e13 ? _e13(_t12) : _e13 instanceof W ? _e13.value = _t12 : _e13 && (_e13.current = _t12);
+              }
+            } catch (err) {
+              _iterator5.e(err);
+            } finally {
+              _iterator5.f();
+            }
+          }(a);
+        }
+        var d = i.childNodes,
+          f = d.length,
+          p = 1 === f ? d[0] : f ? Te(i) : i;
+        return this.v = u, this.n = p, -1 < this.k && s.set(u[this.k][2], p, this), p;
+      }
+    }, {
+      key: "update",
+      value: function update(e) {
+        var t = this.k,
+          n = this.v,
+          s = e.v;
+        if (-1 < t && n[t][2] !== s[t]) return function (e, t, _e$t$2$get$update, _e$t$2$get) {
+          return (_e$t$2$get$update = (_e$t$2$get = e.t[2].get(t)) === null || _e$t$2$get === void 0 ? void 0 : _e$t$2$get.update(e)) !== null && _e$t$2$get$update !== void 0 ? _e$t$2$get$update : e.valueOf(false);
+        }(e, s[t]);
+        var i = n.length;
+        for (; i--;) {
+          var _e15 = n[i],
+            _e14 = _slicedToArray(_e15, 3),
+            _t13 = _e14[0],
+            _r5 = _e14[1],
+            _o5 = _e14[2];
+          if (512 === _t13) continue;
+          var _l4 = s[i];
+          if (_t13 & De) {
+            if (_t13 === De) {
+              var _t14 = _l4(_o5, Ze);
+              _r5 && Ue(_r5, _t14) === _t14 && (_e15[2] = _t14);
+            } else _r5(_o5, _l4);
+          } else {
+            var _n8 = _l4;
+            if (1 & _t13) {
+              if (8 & _t13) _l4.length && _l4[0] instanceof et && (_n8 = Ke(_o5, _l4));else if (256 & _t13 && _l4[0] === _o5[0]) continue;
+            } else if (8 & _t13) if (_t13 & Oe) {
+              if (_l4 === _o5) {
+                _r5(_e15[3], _n8);
+                continue;
+              }
+            } else _o5 instanceof et && (_l4 = Ue(_o5, _l4), _n8 = _l4.n);
+            _l4 !== _o5 && (_e15[2] = _l4, _r5(_e15[3], _n8));
+          }
+        }
+        return this.n;
+      }
+    }]);
+  }();
+  var tt = new WeakMap();
+  var nt = /*#__PURE__*/function (_Map) {
+    function nt() {
+      var _this7;
+      _classCallCheck(this, nt);
+      (_this7 = _callSuper$1(this, nt))._ = new FinalizationRegistry(function (e) {
+        return _this7["delete"](e);
+      });
+      return _this7;
+    }
+    _inherits(nt, _Map);
+    return _createClass(nt, [{
+      key: "get",
+      value: function get(e) {
+        var _superPropGet2;
+        var t = (_superPropGet2 = _superPropGet(nt, "get", this, 3)([e])) === null || _superPropGet2 === void 0 ? void 0 : _superPropGet2.deref();
+        return t && tt.get(t);
+      }
     }, {
       key: "set",
-      value: function set(key, node, hole) {
-        keyed.set(node, hole);
-        //@ts-ignore
-        this._.register(node, key);
-        _superPropGet(Keyed, "set", this, 3)([key, new WeakRef(node)]);
+      value: function set(e, t, n) {
+        tt.set(t, n), this._.register(t, e), _superPropGet(nt, "set", this, 3)([e, new WeakRef(t)]);
       }
     }]);
   }(/*#__PURE__*/_wrapNativeSuper(Map));
-
-  //@ts-check
-
-
-  /** @typedef {globalThis.Element | globalThis.HTMLElement | globalThis.SVGSVGElement | globalThis.DocumentFragment} Container */
-
-  var parse$1 = parser({
-    Comment: Comment,
-    DocumentType: DocumentType,
-    Text: Text,
-    Fragment: Fragment,
-    Element: Element,
-    Component: Component,
-    update: update
-  });
-
-  /**
-   * @param {boolean} xml
-   * @param {WeakMap<TemplateStringsArray | string[], [any, any[], Keyed?]>} twm
-   * @returns
-   */
-  var create$1 = function create(xml) {
-    var twm = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : new WeakMap();
-    return (
-      /**
-       * @param {TemplateStringsArray | string[]} template
-       * @param {unknown[]} values
-       * @returns {Hole}
-       */
-      function (template) {
-        var parsed = twm.get(template);
-        for (var _len = arguments.length, values = new Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
-          values[_key - 1] = arguments[_key];
+  var st = function (_ref6) {
+      var _ref6$Comment = _ref6.Comment,
+        e = _ref6$Comment === void 0 ? ee : _ref6$Comment,
+        _ref6$DocumentType = _ref6.DocumentType,
+        t = _ref6$DocumentType === void 0 ? te : _ref6$DocumentType,
+        _ref6$Text = _ref6.Text,
+        n = _ref6$Text === void 0 ? ne : _ref6$Text,
+        _ref6$Fragment = _ref6.Fragment,
+        s = _ref6$Fragment === void 0 ? re : _ref6$Fragment,
+        _ref6$Element = _ref6.Element,
+        i = _ref6$Element === void 0 ? ie : _ref6$Element,
+        _ref6$Component = _ref6.Component,
+        r = _ref6$Component === void 0 ? se : _ref6$Component,
+        _ref6$update = _ref6.update,
+        o = _ref6$update === void 0 ? de : _ref6$update;
+      return function (l, a, c) {
+        var u = l.join(oe).trim(),
+          d = new Set(),
+          f = [];
+        var p = new s(),
+          h = 0,
+          v = 0,
+          g = 0,
+          b = Q;
+        var _iterator6 = _createForOfIteratorHelper(u.matchAll(ce)),
+          _step6;
+        try {
+          for (_iterator6.s(); !(_step6 = _iterator6.n()).done;) {
+            var _s0 = _step6.value;
+            if (0 < v) {
+              v--;
+              continue;
+            }
+            var _l5 = _s0[0],
+              _m = _s0.index;
+            if (h < _m && U(p, new n(u.slice(h, _m))), _l5 === oe) {
+              "table" === p.name && (p = U(p, new i("tbody", c)), d.add(p));
+              var _t15 = U(p, new e("◦"));
+              f.push(o(_t15, 8, fe(_t15), "", a[g++])), h = _m + 1;
+            } else if (_l5.startsWith("<!")) {
+              var _n9 = u.indexOf(">", _m + 2);
+              if ("--\x3e" === u.slice(_n9 - 2, _n9 + 1)) {
+                var _t16 = u.slice(_m + 4, _n9 - 2);
+                "!" === _t16[0] && U(p, new e(_t16.slice(1).replace(/!$/, "")));
+              } else U(p, new t(u.slice(_m + 2, _n9)));
+              h = _n9 + 1;
+            } else if (_l5.startsWith("</")) {
+              var _e16 = u.indexOf(">", _m + 2);
+              c && "svg" === p.name && (c = !1), p = pe(p, d), h = _e16 + 1;
+            } else {
+              var _e17 = _m + _l5.length,
+                _t17 = u.indexOf(">", _e17),
+                _s1 = _l5.slice(1);
+              var _x = _s1;
+              if (_s1 === oe ? (_x = "template", p = U(p, new r()), b = fe(p).slice(1), f.push(o(p, q, b, "", a[g++]))) : (c || (_x = _x.toLowerCase(), "table" !== p.name || "tr" !== _x && "td" !== _x || (p = U(p, new i("tbody", c)), d.add(p)), "tbody" === p.name && "td" === _x && (p = U(p, new i("tr", c)), d.add(p))), p = U(p, new i(_x, !!c && "svg" !== _x)), b = Q), _e17 < _t17) {
+                var _n0 = !1;
+                var _iterator7 = _createForOfIteratorHelper(u.slice(_e17, _t17).matchAll(ue)),
+                  _step7;
+                try {
+                  for (_iterator7.s(); !(_step7 = _iterator7.n()).done;) {
+                    var _step7$value = _slicedToArray(_step7.value, 3),
+                      _s10 = _step7$value[0],
+                      _i4 = _step7$value[1],
+                      _r6 = _step7$value[2];
+                    if (_r6 === oe || _r6 === le || _r6 === ae || (_n0 = _i4.endsWith(oe))) {
+                      var _e18 = b === Q ? b = fe(p) : b;
+                      f.push(o(p, 2, _e18, _n0 ? _i4.slice(0, -1) : _i4, a[g++])), _n0 = !1, v++;
+                    } else X(p, _i4, !_r6 || _r6.slice(1, -1));
+                  }
+                } catch (err) {
+                  _iterator7.e(err);
+                } finally {
+                  _iterator7.f();
+                }
+                b = Q;
+              }
+              h = _t17 + 1;
+              var _y = 0 < _t17 && "/" === u[_t17 - 1];
+              if (c) _y && (p = p.parent);else if (_y || I.has(_x)) p = _y ? pe(p, d) : p.parent;else if ("svg" === _x) c = !0;else if (G.has(_x)) {
+                var _e19 = u.indexOf("</".concat(_s1, ">"), h),
+                  _t18 = u.slice(h, _e19);
+                _t18.trim() === oe ? (v++, f.push(o(p, 3, fe(p), "", a[g++]))) : U(p, new n(_t18)), p = p.parent, h = _e19 + _s1.length + 3, v++;
+                continue;
+              }
+            }
+          }
+        } catch (err) {
+          _iterator6.e(err);
+        } finally {
+          _iterator6.f();
         }
-        if (!parsed) {
-          parsed = parse$1(template, values, xml);
-          parsed.push(isKeyed() ? new Keyed() : null);
-          parsed.push(template);
-          parsed[0] = fragment(parsed[0].toString(), xml);
-          twm.set(template, parsed);
+        return h < u.length && U(p, new n(u.slice(h))), [p, f];
+      };
+    }({
+      Comment: ee,
+      DocumentType: te,
+      Text: ne,
+      Fragment: re,
+      Element: ie,
+      Component: se,
+      update: function update(e, t, n, s, i) {
+        switch (t) {
+          case q:
+            return [n, i, De];
+          case 8:
+            return j(i) ? [n, Ee, 9] : i instanceof V ? [n, (r = e.xml, function (e, t) {
+              var _e$$e;
+              var n = (_e$$e = e[$e]) !== null && _e$$e !== void 0 ? _e$$e : e[$e] = {};
+              n.v !== t && (n.f = Te(Ne(t, r)), n.v = t), Re(e, n.f);
+            }), 8192] : i instanceof W ? [n, Le, 32776] : [n, Re, 8];
+          case 3:
+            return [n, Fe("textContent"), 2048];
+          case 2:
+            {
+              var _t19 = e.type === q;
+              switch (s.at(0)) {
+                case "@":
+                  {
+                    var _e20 = j(i);
+                    return [n, Je(s.slice(1), Symbol(s), _e20), _e20 ? 257 : 256];
+                  }
+                case "?":
+                  return [n, Ve(s.slice(1)), 4096];
+                case ".":
+                  return "..." === s ? [n, _t19 ? F : Be, _t19 ? 144 : 128] : [n, Pe(s.slice(1)), _t19 ? 80 : 64];
+                default:
+                  return _t19 ? [n, Pe(s), 1040] : "aria" === s ? [n, We, 2] : "data" !== s || /^object$/i.test(e.name) ? "key" === s ? [n, ze = true, 512] : "ref" === s ? [n, Fe($e), 16384] : s.startsWith("on") ? [n, Fe(s.toLowerCase()), 64] : [n, Ae(s), 4] : [n, _e, 32];
+              }
+            }
         }
-        return new Hole(parsed, values);
+        var r;
       }
-    );
-  };
-  var htmlHole = create$1(false);
-  var svgHole = create$1(true);
-  var rendered = new WeakMap();
-
-  /**
-   * @param {TemplateStringsArray | string[]} template
-   * @param {any[]} values
-   * @returns {Node | HTMLElement | Hole}
-   */
-  function html(template) {
-    for (var _len2 = arguments.length, values = new Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
-      values[_key2 - 1] = arguments[_key2];
+    }),
+    it = function it(e) {
+      var t = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : new WeakMap();
+      return function (n) {
+        var i = t.get(n);
+        for (var _len = arguments.length, s = new Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
+          s[_key - 1] = arguments[_key];
+        }
+        return i || (i = st(n, s, e), i.push(function () {
+          var e = ze;
+          return ze = false, e;
+        }() ? new nt() : null), i[0] = Ne(i[0].toString(), e), t.set(n, i)), new et(i, s);
+      };
+    },
+    rt = it(false),
+    ot = it(true),
+    lt = new WeakMap();
+  function at(e) {
+    for (var _len2 = arguments.length, t = new Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
+      t[_key2 - 1] = arguments[_key2];
     }
-    var hole = htmlHole.apply(null, arguments);
-    return _get() ? hole.valueOf(true) : hole;
+    var n = rt.apply(null, arguments);
+    return Ge() ? n.valueOf(true) : n;
   }
-
-  /**
-   * @param {TemplateStringsArray | string[]} template
-   * @param {any[]} values
-   * @returns {Node | SVGSVGElement | Hole}
-   */
-  function svg(template) {
-    for (var _len3 = arguments.length, values = new Array(_len3 > 1 ? _len3 - 1 : 0), _key3 = 1; _key3 < _len3; _key3++) {
-      values[_key3 - 1] = arguments[_key3];
+  function ct(e) {
+    for (var _len3 = arguments.length, t = new Array(_len3 > 1 ? _len3 - 1 : 0), _key3 = 1; _key3 < _len3; _key3++) {
+      t[_key3 - 1] = arguments[_key3];
     }
-    var hole = svgHole.apply(null, arguments);
-    return _get() ? hole.valueOf(true) : hole;
+    var n = ot.apply(null, arguments);
+    return Ge() ? n.valueOf(true) : n;
   }
-
-  /**
-   * @param {Container} where
-   * @param {Function | Node | Container} what
-   * @returns
-   */
-  var render = function render(where, what) {
-    var known = rendered.get(where);
-    if (known) known[0]();
-    if (typeof what === 'function') {
-      _set(false);
-      var hole;
-      var scope = effectScope(function () {
-        hole = what();
+  var ut = function ut(e, t) {
+    var n = lt.get(e);
+    if (n && n[0](), "function" == typeof t) {
+      var _i5;
+      qe(false);
+      var _r7 = function (e) {
+        var t = {
+          deps: void 0,
+          depsTail: void 0,
+          subs: void 0,
+          subsTail: void 0,
+          flags: 0
+        };
+        void 0 !== d && s(t, d);
+        var n = v(void 0),
+          i = g(t);
+        try {
+          e();
+        } finally {
+          g(i), v(n);
+        }
+        return D.bind(t);
+      }(function () {
+        _i5 = t();
       });
-      //@ts-ignore
-      if (!known || known[1].t !== hole.t) {
-        //@ts-ignore
-        var d = hole.valueOf(false);
-        where.replaceChildren(d);
-      } else known[1].update(hole);
-      rendered.set(where, [scope, hole]);
-    } else {
-      _set(true);
-      rendered["delete"](where);
-      where.replaceChildren(what instanceof Hole ? dom(what) : diffFragment(what, 1));
-    }
-    return where;
+      if (n && n[1].t === _i5.t) n[1].update(_i5);else {
+        var _t20 = _i5.valueOf(false);
+        e.replaceChildren(_t20);
+      }
+      lt.set(e, [_r7, _i5]);
+    } else qe(true), lt["delete"](e), e.replaceChildren(t instanceof et ? Ie(t) : xe(t, 1));
+    return e;
   };
 
   var umap = (function (_) {
@@ -2416,17 +1742,17 @@ var uce = (function (exports) {
       }, {
         key: "render",
         get: function get() {
-          return render;
+          return ut;
         }
       }, {
         key: "html",
         get: function get() {
-          return html;
+          return at;
         }
       }, {
         key: "svg",
         get: function get() {
-          return svg;
+          return ct;
         }
       }, {
         key: "css",
@@ -2439,14 +1765,22 @@ var uce = (function (exports) {
     this[method] = this[method].bind(this);
   }
   function content() {
-    return render(this, html.apply(null, arguments));
+    return ut(this, at.apply(null, arguments));
   }
 
+  exports.Hole = et;
+  exports.batch = M;
+  exports.computed = N;
   exports.css = css;
   exports.define = define;
-  exports.html = html;
-  exports.render = render;
-  exports.svg = svg;
+  exports.effect = x;
+  exports.fragment = Ne;
+  exports.html = at;
+  exports.render = ut;
+  exports.signal = L;
+  exports.svg = ct;
+  exports.unsafe = z;
+  exports.untracked = $;
 
   return exports;
 

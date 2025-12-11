@@ -1,4 +1,4 @@
-import {render, html, svg} from 'uhtml/dom';
+import {render, html, svg, unsafe, Hole, signal, computed, effect, untracked, batch, fragment} from 'uhtml';
 import umap from 'umap';
 import css from 'plain-tag';
 
@@ -170,7 +170,7 @@ const define = (tagName, definition) => {
   return MicroElement;
 };
 
-export {define, render, html, svg, css};
+export {define, render, html, svg, css, unsafe, Hole, signal, computed, effect, untracked, batch, fragment};
 
 /* istanbul ignore else */
 if (!CE.get('uce-lib'))
